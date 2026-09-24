@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Finance AI V3 — System health: worker status, queue depth, LLM cost." />
+  <title>Sistem Sağlığı / System Health — Finance AI V3</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+  <style>
+    :root {
+      --bg: #0b0d12; --foreground: #e6e8ee; --muted: #8a91a3;
+      --card: #12151c; --border: #232733;
+      --accent: #4ade80; --accent-dim: #22c55e;
+      --danger: #ef4444; --warn: #f59e0b; --info: #60a5fa;
+      --link: #60a5fa; --code-bg: #0f1218; --radius: 10px; --max-width: 960px; --gap: 16px;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0; padding: 0; background: var(--bg); color: var(--foreground);
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      font-size: 15px; line-height: 1.5; -webkit-font-smoothing: antialiased;
+    }
+    a { color: var(--link); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    nav.crumbs { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+    nav.crumbs a { color: var(--muted); }
+    nav.crumbs a:hover { color: var(--foreground); }
+    main {
+      max-width: var(--max-width); margin: 0 auto;
+      padding: 24px 16px 48px; display: flex; flex-direction: column; gap: var(--gap);
+    }
+    header.app-header {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      padding-bottom: 16px; border-bottom: 1px solid var(--border); flex-wrap: wrap;
+    }
+    .brand h1 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -0.01em; }
+    .brand .subtitle { margin: 2px 0 0; font-size: 12px; color: var(--muted); }
+    .refresh-indicator { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+    .refresh-indicator .spinner {
+      width: 10px; height: 10px;
+      border: 2px solid var(--border); border-top-color: var(--accent);
+      border-radius: 50%; display: none; animation: spin 0.8s linear infinite;
+    }
+    .refresh-indicator.is-loading .spinner { display: inline-block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .overall {
+      display: flex; align-items: center; gap: 12px; padding: 14px 16px;
+      background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+    }
+    .overall .pill {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 4px 10px; border-radius: 999px;
+      font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+      border: 1px solid var(--border); background: var(--code-bg); color: var(--muted);
+    }
+    .overall .pill .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+    .overall .pill.ok      { color: var(--accent); border-color: var(--accent); }
+    .overall .pill.ok      .dot { background: var(--accent); }
+    .overall .pill.degraded { color: var(--warn);   border-color: var(--warn); }
+    .overall .pill.degraded .dot { background: var(--warn); }
+    .overall .pill.down     { color: var(--danger); border-color: var(--danger); }
+    .overall .pill.down     .dot { background: var(--danger); }
+
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--gap); }
+    .row.workers { grid-template-columns: repeat(4, 1fr); }
+    @media (max-width: 900px) { .row.workers { grid-template-columns: repeat(2, 1fr); } .row { grid-template-columns: 1fr; } }
+
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; }
+    .card h2 {
+      margin: 0 0 12px; font-size: 14px; font-weight: 600; letter-spacing: 0.04em;
+      text-transform: uppercase; color: var(--muted);
+    }
+    .card-row { display: flex; gap: var(--gap); flex-wrap: wrap; }
+
+    /* Worker grid */
+    .worker {
+      background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px;
+      padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; min-height: 92px;
+    }
+    .worker .name { font-weight: 700; font-size: 13px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .worker .name .pip {
+      width: 9px; height: 9px; border-radius: 50%; background: var(--muted);
+      box-shadow: 0 0 0 2px rgba(255,255,255,0.04);
+    }
+    .worker .pip.ok      { background: var(--accent); }
+    .worker .pip.degraded { background: var(--warn); }
+    .worker .pip.down    { background: var(--danger); }
+    .worker .pip.unknown { background: var(--muted); }
+    .worker .meta { font-size: 11px; color: var(--muted); display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .worker .badge {
+      display: inline-block; padding: 1px 6px; border-radius: 4px;
+      font-size: 10px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+      background: var(--card); border: 1px solid var(--border); color: var(--muted);
+    }
+    .worker .badge.ok       { color: var(--accent); border-color: var(--accent); }
+    .worker .badge.slow     { color: var(--warn);   border-color: var(--warn); }
+    .worker .badge.down     { color: var(--danger); border-color: var(--danger); }
+
+    /* KPI cards */
+    .kpi-card { flex: 1; min-width: 140px; padding: 12px; background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px; }
+    .kpi-card .label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+    .kpi-card .value { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; margin-top: 2px; }
+    .kpi-card .sub   { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+    /* Activity feed */
+    ul.events { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; max-height: 320px; overflow-y: auto; }
+    ul.events li {
+      padding: 8px 10px; background: var(--code-bg); border: 1px solid var(--border);
+      border-radius: 6px; font-size: 12px;
+      display: grid; grid-template-columns: 90px 110px 1fr; gap: 8px; align-items: baseline;
+    }
+    ul.events li .ts  { color: var(--muted); font-variant-numeric: tabular-nums; font-size: 11px; }
+    ul.events li .src { color: var(--info); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
+    ul.events li .msg { color: var(--foreground); }
+
+    .queue-bar {
+      display: flex; align-items: center; gap: 8px;
+      margin-top: 8px; font-size: 12px; color: var(--muted);
+    }
+    .queue-bar .bar {
+      flex: 1; height: 8px; background: var(--code-bg); border: 1px solid var(--border); border-radius: 999px; overflow: hidden;
+    }
+    .queue-bar .fill { height: 100%; background: var(--accent); transition: width 0.4s; }
+    .queue-bar .fill.warn   { background: var(--warn); }
+    .queue-bar .fill.danger { background: var(--danger); }
+
+    .empty-state { padding: 16px; color: var(--muted); font-size: 13px; text-align: center; }
+    .error-state { padding: 12px; color: var(--danger); background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 6px; font-size: 12px; }
+
+    footer.app-footer {
+      display: flex; justify-content: space-between; align-items: center;
+      padding-top: 12px; border-top: 1px solid var(--border);
+      font-size: 11px; color: var(--muted); gap: 12px; flex-wrap: wrap;
+    }
+
+    @media (max-width: 720px) {
+      main { padding: 16px 12px 32px; }
+      .brand h1 { font-size: 18px; }
+      .card { padding: 12px; }
+      ul.events li { grid-template-columns: 1fr; }
+      ul.events li .ts, ul.events li .src { font-size: 10px; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <a href="index.html">← Ana sayfa / Home</a>
+    </nav>
+
+    <header class="app-header">
+      <div class="brand">
+        <h1>Sistem Sağlığı / System Health</h1>
+        <p class="subtitle">Worker durumları, kuyruk derinliği, LLM maliyeti / Worker statuses, queue depth, LLM cost</p>
+      </div>
+      <span class="refresh-indicator" id="refresh-indicator" aria-live="polite">
+        <span class="spinner" aria-hidden="true"></span>
+        <span class="text" id="refresh-text">idle</span>
+      </span>
+    </header>
+
+    <!-- Overall system status -->
+    <div class="overall" id="overall">
+      <span class="pill" id="overall-pill"><span class="dot"></span><span id="overall-text">bilinmiyor / unknown</span></span>
+      <span style="font-size:12px; color: var(--muted);">Son kontrol / last probe: <strong id="overall-probe" style="color: var(--foreground);">—</strong></span>
+    </div>
+
+    <!-- Worker grid -->
+    <section class="card">
+      <h2>Worker Durumları / Worker Statuses</h2>
+      <div class="row workers" id="workers-grid"></div>
+    </section>
+
+    <div class="row">
+      <!-- LLM cost card -->
+      <section class="card">
+        <h2>LLM Maliyeti / LLM Cost</h2>
+        <div class="card-row">
+          <div class="kpi-card">
+            <div class="label">Bugün toplam / Today total</div>
+            <div class="value" id="llm-today">—</div>
+            <div class="sub">USD</div>
+          </div>
+          <div class="kpi-card">
+            <div class="label">Karar başına / Per decision</div>
+            <div class="value" id="llm-per-decision">—</div>
+            <div class="sub">son 24 saat / last 24h</div>
+          </div>
+          <div class="kpi-card">
+            <div class="label">Bugün karar / Decisions today</div>
+            <div class="value" id="llm-dec-count">—</div>
+            <div class="sub">üretilen / generated</div>
+          </div>
+        </div>
+        <p class="sub" style="margin-top: 10px; font-size: 11px; color: var(--muted);">
+          Faturalama henüz bağlı değilse alanlar <strong>—</strong> gösterir.
+          / Shows <strong>—</strong> until billing metrics are wired.
+        </p>
+      </section>
+
+      <!-- Queue depth -->
+      <section class="card">
+        <h2>Kuyruk Derinliği / Queue Depth</h2>
+        <div class="card-row">
+          <div class="kpi-card">
+            <div class="label">kap-collector</div>
+            <div class="value" id="q-kap">—</div>
+          </div>
+          <div class="kpi-card">
+            <div class="label">decision-engine</div>
+            <div class="value" id="q-dec">—</div>
+          </div>
+          <div class="kpi-card">
+            <div class="label">report-generator</div>
+            <div class="value" id="q-rep">—</div>
+          </div>
+        </div>
+        <div class="queue-bar">
+          <span style="width:90px;">kap-collector</span>
+          <div class="bar"><div class="fill" id="q-bar-kap" style="width: 0%;"></div></div>
+          <span id="q-bar-kap-pct">0%</span>
+        </div>
+        <div class="queue-bar">
+          <span style="width:90px;">decision-engine</span>
+          <div class="bar"><div class="fill" id="q-bar-dec" style="width: 0%;"></div></div>
+          <span id="q-bar-dec-pct">0%</span>
+        </div>
+        <div class="queue-bar">
+          <span style="width:90px;">report-generator</span>
+          <div class="bar"><div class="fill" id="q-bar-rep" style="width: 0%;"></div></div>
+          <span id="q-bar-rep-pct">0%</span>
+        </div>
+      </section>
+    </div>
+
+    <!-- Activity feed -->
+    <section class="card">
+      <h2>İş Akışı Etkinliği / Workflow Activity</h2>
+      <ul class="events" id="events-list">
+        <li class="empty-state" style="grid-column: 1 / -1;">Yükleniyor / Loading…</li>
+      </ul>
+    </section>
+
+    <footer class="app-footer">
+      <span id="last-updated">—</span>
+      <span>API: /api/health + /api/v1/* · Oto-yenileme / auto-refresh: 10s</span>
+    </footer>
+  </main>
+
+  <script src="system-health.js" defer></script>
+</body>
+</html>

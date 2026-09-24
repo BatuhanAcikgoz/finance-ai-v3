@@ -4,11 +4,12 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-# Distribution / packaging
+# Distribution / packaging (do NOT ignore dist/ globally — apps/dashboard/dist/
+# ships the static dashboard artifacts to nginx and must be tracked).
 .Python
 build/
 develop-eggs/
-dist/
+# dist/
 downloads/
 eggs/
 .eggs/

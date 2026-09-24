@@ -359,6 +359,73 @@ CREATE INDEX IF NOT EXISTS idx_alerts_ticker ON notification.alerts(ticker, crea
 CREATE INDEX IF NOT EXISTS idx_alerts_unread ON notification.alerts(is_read, created_at DESC) WHERE NOT is_read;
 
 -- =============================================================================
+
+-- =============================================================================
+-- analysis schema (Technical Indicators + Decision Scoring)
+-- =============================================================================
+
+CREATE TABLE IF NOT EXISTS analysis.indicators (
+    indicator_id BIGSERIAL PRIMARY KEY,
+    ticker VARCHAR(5) NOT NULL,
+    timeframe VARCHAR(5) NOT NULL,
+    bar_start TIMESTAMPTZ NOT NULL,
+    sma_20 NUMERIC(18,4),
+    sma_50 NUMERIC(18,4),
+    sma_200 NUMERIC(18,4),
+    ema_12 NUMERIC(18,4),
+    ema_26 NUMERIC(18,4),
+    rsi_14 NUMERIC(8,4),
+    macd NUMERIC(18,4),
+    macd_signal NUMERIC(18,4),
+    macd_hist NUMERIC(18,4),
+    bb_upper NUMERIC(18,4),
+    bb_middle NUMERIC(18,4),
+    bb_lower NUMERIC(18,4),
+    atr_14 NUMERIC(18,4),
+    stochastic_k NUMERIC(8,4),
+    stochastic_d NUMERIC(8,4),
+    volume_spike_flag BOOLEAN DEFAULT FALSE,
+    computed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE(ticker, timeframe, bar_start)
+);
+
+CREATE INDEX IF NOT EXISTS idx_indicators_ticker_tf ON analysis.indicators(ticker, timeframe, bar_start DESC);
+
+CREATE TABLE IF NOT EXISTS analysis.decision_scores (
+    score_id BIGSERIAL PRIMARY KEY,
+    ticker VARCHAR(5) NOT NULL,
+    score_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    technical_score NUMERIC(5,3),
+    sentiment_score NUMERIC(5,3),
+    macro_score NUMERIC(5,3),
+    sector_score NUMERIC(5,3),
+    composite_score NUMERIC(5,3),
+    confidence NUMERIC(5,3),
+    explanation TEXT,
+    UNIQUE(ticker, score_at)
+);
+
+CREATE INDEX IF NOT EXISTS idx_decision_scores_ticker ON analysis.decision_scores(ticker, score_at DESC);
+
+CREATE TABLE IF NOT EXISTS analysis.backtest_runs (
+    run_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    ended_at TIMESTAMPTZ,
+    scope JSONB NOT NULL,
+    hit_rate NUMERIC(5,3),
+    total_trades INTEGER,
+    winning_trades INTEGER,
+    losing_trades INTEGER,
+    avg_return NUMERIC(8,4),
+    sharpe NUMERIC(8,4),
+    max_drawdown NUMERIC(8,4),
+    proposed_weight_adjustments JSONB,
+    approved BOOLEAN,
+    approved_at TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_backtest_runs_started ON analysis.backtest_runs(started_at DESC);
+
 -- audit schema (Compliance Audits)
 -- =============================================================================
 

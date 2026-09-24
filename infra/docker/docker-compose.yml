@@ -47,10 +47,13 @@ services:
       - finance-ai-network
 
   # === Vector Store ===
+  # Disabled by default profile to avoid a port conflict with an already-running
+  # qdrant on the host. Enable with `COMPOSE_PROFILES=full`.
   qdrant:
     image: qdrant/qdrant:v1.10.1
     container_name: finance-ai-qdrant
     restart: unless-stopped
+    profiles: ["full"]
     ports:
       - "6333:6333"  # REST API
       - "6334:6334"  # gRPC API
@@ -70,6 +73,7 @@ services:
 
   # === LLM Gateway ===
   litellm:
+    profiles: ["full"]
     image: ghcr.io/berriai/litellm:main
     container_name: finance-ai-litellm
     restart: unless-stopped
@@ -89,6 +93,7 @@ services:
 
   # === Workflow Orchestration ===
   n8n:
+    profiles: ["full"]
     image: n8nio/n8n:latest
     container_name: finance-ai-n8n
     restart: unless-stopped
@@ -125,6 +130,7 @@ services:
 
   # === Observability ===
   prometheus:
+    profiles: ["full"]
     image: prom/prometheus:latest
     container_name: finance-ai-prometheus
     restart: unless-stopped
@@ -141,6 +147,7 @@ services:
       - finance-ai-network
 
   grafana:
+    profiles: ["full"]
     image: grafana/grafana:latest
     container_name: finance-ai-grafana
     restart: unless-stopped
@@ -159,6 +166,7 @@ services:
       - finance-ai-network
 
   loki:
+    profiles: ["full"]
     image: grafana/loki:latest
     container_name: finance-ai-loki
     restart: unless-stopped
@@ -172,6 +180,7 @@ services:
       - finance-ai-network
 
   jaeger:
+    profiles: ["full"]
     image: jaegertracing/all-in-one:latest
     container_name: finance-ai-jaeger
     restart: unless-stopped
@@ -185,6 +194,7 @@ services:
       - finance-ai-network
 
   otel-collector:
+    profiles: ["full"]
     image: otel/opentelemetry-collector:latest
     container_name: finance-ai-otel
     restart: unless-stopped
@@ -232,8 +242,6 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      qdrant:
-        condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health',timeout=3).status==200 else 1)"]
       interval: 15s
@@ -257,13 +265,10 @@ services:
     environment:
       POSTGRES_HOST: postgres
       REDIS_HOST: redis
-      QDRANT_HOST: qdrant
     depends_on:
       postgres:
         condition: service_healthy
       redis:
-        condition: service_healthy
-      qdrant:
         condition: service_healthy
     networks:
       - finance-ai-network
@@ -384,6 +389,7 @@ services:
     command: ["python", "-m", "scripts.seed_dev_data"]
     networks:
       - finance-ai-network
+
 
 # =============================================================================
 # Volumes

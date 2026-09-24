@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Finance AI V3 — Portfolio list: holdings, weights, drift, donut chart." />
+  <title>Portföy / Portfolio — Finance AI V3</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+  <style>
+    :root {
+      --bg: #0b0d12; --foreground: #e6e8ee; --muted: #8a91a3;
+      --card: #12151c; --border: #232733;
+      --accent: #4ade80; --accent-dim: #22c55e;
+      --danger: #ef4444; --warn: #f59e0b; --link: #60a5fa;
+      --code-bg: #0f1218; --radius: 10px; --max-width: 960px; --gap: 16px;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0; padding: 0; background: var(--bg); color: var(--foreground);
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      font-size: 15px; line-height: 1.5; -webkit-font-smoothing: antialiased;
+    }
+    a { color: var(--link); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    nav.crumbs { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+    nav.crumbs a { color: var(--muted); }
+    nav.crumbs a:hover { color: var(--foreground); }
+    main {
+      max-width: var(--max-width); margin: 0 auto;
+      padding: 24px 16px 48px; display: flex; flex-direction: column; gap: var(--gap);
+    }
+    header.app-header {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      padding-bottom: 16px; border-bottom: 1px solid var(--border); flex-wrap: wrap;
+    }
+    .brand h1 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -0.01em; }
+    .brand .subtitle { margin: 2px 0 0; font-size: 12px; color: var(--muted); }
+    .header-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 7px 12px; border-radius: 6px; font-size: 13px; font-weight: 600;
+      background: var(--card); border: 1px solid var(--border); color: var(--foreground);
+      cursor: pointer; transition: border-color 0.1s, background 0.1s;
+    }
+    .btn:hover { border-color: var(--accent); }
+    .btn.primary { background: var(--accent); color: #0b0d12; border-color: var(--accent); }
+    .btn.primary:hover { background: var(--accent-dim); border-color: var(--accent-dim); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .refresh-indicator { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+    .refresh-indicator .spinner {
+      width: 10px; height: 10px;
+      border: 2px solid var(--border); border-top-color: var(--accent);
+      border-radius: 50%; display: none; animation: spin 0.8s linear infinite;
+    }
+    .refresh-indicator.is-loading .spinner { display: inline-block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .row { display: grid; grid-template-columns: 280px 1fr; gap: var(--gap); }
+    @media (max-width: 760px) { .row { grid-template-columns: 1fr; } }
+
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; }
+    .card h2 {
+      margin: 0 0 12px; font-size: 14px; font-weight: 600; letter-spacing: 0.04em;
+      text-transform: uppercase; color: var(--muted);
+    }
+    .card-row { display: flex; gap: var(--gap); flex-wrap: wrap; }
+    .kpi-card { flex: 1; min-width: 140px; }
+    .kpi-card .label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+    .kpi-card .value { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; margin-top: 2px; }
+    .kpi-card .sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+    table.symbols { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+    .table-wrap { overflow-x: auto; }
+    table.symbols th, table.symbols td {
+      text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); white-space: nowrap;
+    }
+    table.symbols th {
+      font-weight: 600; color: var(--muted); font-size: 11px; text-transform: uppercase;
+      letter-spacing: 0.05em; position: sticky; top: 0; background: var(--card);
+    }
+    table.symbols tbody tr { cursor: pointer; transition: background-color 0.1s; }
+    table.symbols tbody tr:hover { background: rgba(74, 222, 128, 0.06); }
+    .num { text-align: right; font-feature-settings: "tnum"; }
+    .pos { color: var(--accent); }
+    .neg { color: var(--danger); }
+    .neutral { color: var(--muted); }
+    .badge {
+      display: inline-block; padding: 2px 6px; border-radius: 4px;
+      font-size: 10px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+      background: var(--code-bg); border: 1px solid var(--border); color: var(--muted);
+    }
+
+    .toolbar { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+    .toolbar select {
+      background: var(--code-bg); color: var(--foreground);
+      border: 1px solid var(--border); border-radius: 6px;
+      padding: 7px 10px; font-size: 13px;
+    }
+    .toolbar select:focus { outline: 1px solid var(--accent); }
+
+    .donut-card .donut-wrap { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+    .donut-card svg.donut { width: 180px; height: 180px; flex-shrink: 0; }
+    .donut-card .legend { flex: 1; display: flex; flex-direction: column; gap: 4px; min-width: 160px; }
+    .donut-card .legend .row { display: flex; align-items: center; gap: 8px; font-size: 12px; grid-template-columns: 12px 1fr auto; }
+    .donut-card .legend .swatch { width: 12px; height: 12px; border-radius: 3px; }
+    .donut-card .legend .ticker { font-weight: 600; }
+    .donut-card .legend .pct { color: var(--muted); font-variant-numeric: tabular-nums; }
+
+    .empty-state { padding: 16px; color: var(--muted); font-size: 13px; text-align: center; }
+    .error-state { padding: 12px; color: var(--danger); background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 6px; font-size: 12px; }
+
+    /* Modal */
+    .modal-backdrop {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.55);
+      display: none; align-items: center; justify-content: center; z-index: 50;
+    }
+    .modal-backdrop.open { display: flex; }
+    .modal {
+      background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 20px; max-width: 360px; width: 90%;
+    }
+    .modal h3 { margin: 0 0 8px; font-size: 16px; }
+    .modal p { color: var(--muted); font-size: 13px; margin: 0 0 14px; }
+    .modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
+
+    @media (max-width: 720px) {
+      main { padding: 16px 12px 32px; }
+      .brand h1 { font-size: 18px; }
+      .card { padding: 12px; }
+      table.symbols th, table.symbols td { padding: 6px 8px; font-size: 12px; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <a href="index.html">← Ana sayfa / Home</a>
+    </nav>
+
+    <header class="app-header">
+      <div class="brand">
+        <h1>Portföy / Portfolio</h1>
+        <p class="subtitle">Holdings, weights &amp; drift — top 5 by weight</p>
+      </div>
+      <div class="header-actions">
+        <span class="refresh-indicator" id="refresh-indicator" aria-live="polite">
+          <span class="spinner" aria-hidden="true"></span>
+          <span class="text" id="refresh-text">idle</span>
+        </span>
+        <button class="btn" id="btn-refresh" type="button">Yenile / Refresh</button>
+      </div>
+    </header>
+
+    <!-- Toolbar: portfolio selector + action buttons -->
+    <section class="card">
+      <div class="toolbar">
+        <label for="portfolio-select" style="font-size:12px; color: var(--muted); align-self:center;">
+          Portföy / Portfolio:
+        </label>
+        <select id="portfolio-select" aria-label="Portfolio selector">
+          <option value="default">default</option>
+        </select>
+        <div style="flex:1"></div>
+        <button class="btn primary" id="btn-rebalance" type="button">Rebalance</button>
+        <button class="btn" id="btn-edit-targets" type="button">Hedefleri Düzenle / Edit Targets</button>
+      </div>
+
+      <!-- KPI row -->
+      <div class="card-row" style="margin-top: 12px;">
+        <div class="kpi-card">
+          <div class="label">Toplam değer / Total value</div>
+          <div class="value" id="kpi-total">—</div>
+          <div class="sub" id="kpi-currency">TRY</div>
+        </div>
+        <div class="kpi-card">
+          <div class="label">Günlük P&amp;L / Daily P&amp;L</div>
+          <div class="value pos" id="kpi-pnl">—</div>
+          <div class="sub" id="kpi-pnl-pct">0.00%</div>
+        </div>
+        <div class="kpi-card">
+          <div class="label">VaR (1d 95%)</div>
+          <div class="value neg" id="kpi-var">—</div>
+          <div class="sub">parametreli / parametric</div>
+        </div>
+        <div class="kpi-card">
+          <div class="label">CVaR (1d 95%)</div>
+          <div class="value neg" id="kpi-cvar">—</div>
+          <div class="sub">kuyruk riski / tail risk</div>
+        </div>
+      </div>
+    </section>
+
+    <div class="row">
+      <!-- Left: holdings table -->
+      <section class="card" style="grid-column: 1 / -1;">
+        <h2>Pozisyonlar / Top Holdings</h2>
+        <div class="table-wrap">
+          <table class="symbols" id="holdings-table" aria-label="Holdings table">
+            <thead>
+              <tr>
+                <th scope="col">Sembol / Ticker</th>
+                <th scope="col">Ad / Name</th>
+                <th scope="col" class="num">Ağırlık / W %</th>
+                <th scope="col" class="num">Hedef / Target %</th>
+                <th scope="col" class="num">Sapma / Drift</th>
+                <th scope="col" class="num">Günlük P&amp;L / Daily %</th>
+                <th scope="col" class="num">Değer / Value (TRY)</th>
+              </tr>
+            </thead>
+            <tbody id="holdings-body">
+              <tr><td colspan="7" class="empty-state">Yükleniyor / Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Donut visualization -->
+      <section class="card donut-card" style="grid-column: 1 / -1;">
+        <h2>Dağılım / Allocation</h2>
+        <div class="donut-wrap">
+          <svg class="donut" id="donut" viewBox="0 0 100 100" role="img" aria-label="Holdings allocation">
+            <circle cx="50" cy="50" r="40" fill="none" stroke="var(--border)" stroke-width="14" />
+            <g id="donut-slices"></g>
+            <text x="50" y="48" text-anchor="middle" fill="var(--muted)" font-size="6" font-weight="600">TOPLAM</text>
+            <text x="50" y="58" text-anchor="middle" fill="var(--foreground)" font-size="9" font-weight="700" id="donut-total">—</text>
+          </svg>
+          <div class="legend" id="donut-legend"></div>
+        </div>
+      </section>
+    </div>
+
+    <footer class="app-footer" style="display:flex; justify-content:space-between; padding-top:12px; border-top:1px solid var(--border); font-size:11px; color: var(--muted);">
+      <span id="last-updated">—</span>
+      <span>API: /api/*</span>
+    </footer>
+  </main>
+
+  <!-- Placeholder modal (rebalance / edit targets) -->
+  <div class="modal-backdrop" id="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal">
+      <h3 id="modal-title">Yakında / Coming in Phase 2</h3>
+      <p id="modal-text">Bu özellik bir sonraki sprint'te eklenecek. / This feature will be added in the next sprint.</p>
+      <div class="modal-actions">
+        <button class="btn" id="modal-close" type="button">Kapat / Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="portfolio.js" defer></script>
+</body>
+</html>

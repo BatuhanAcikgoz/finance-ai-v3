@@ -16,13 +16,52 @@ built by CI. The current production artifact is `dist/`.
 ```
 apps/dashboard/
 ├── dist/                 # ← what nginx serves
-│   ├── index.html        # semantic HTML5, ~250 lines, inline CSS using Hermes palette
-│   ├── app.js            # vanilla JS — fetch + render, auto-refresh every 30s
+│   ├── index.html        # home — symbols, decisions preview, KPIs
+│   ├── decisions.html    # decisions list (filters + table)
+│   ├── decision-detail.html # single decision: evidence trace, compliance, etc.
+│   ├── app.js            # shared helpers + home-page renderers (window.FA namespace)
+│   ├── decisions.js      # decisions-list page logic
+│   ├── decision-detail.js # decision-detail page logic
+│   ├── latest-preview.js # home-page "Latest decision" highlight
 │   └── favicon.svg       # inline-friendly green hexagon mark
 ├── src/                  # Next.js UI prototype (WIP, not built)
 ├── package.json          # Next.js manifest (kept for the WIP source tree)
 └── README.md             # this file
 ```
+
+## Pages & navigation
+
+- **`/` (index.html)** — overview: symbols, KPI strip, "Latest decision" highlight,
+  alerts, market snapshot. Top-nav links to **Kararlar / Decisions**.
+- **`/decisions.html`** — paginated list of every decision with filters:
+  date range, ticker (datalist from `/v1/market/symbols`), action,
+  confidence slider (placeholder), and compliance status. Row click → detail.
+- **`/decision-detail.html?id=…`** — full evidence trace, portfolio context,
+  compliance audit, prompt-version snapshot, and similar past decisions.
+
+All three pages share helpers exposed on `window.FA` from `app.js`:
+
+- `fetchJson`, `fetchPost`, `normalizeList`
+- `renderActionBadge`, `renderComplianceBadge`, `renderConfidenceMeter`,
+  `renderEvidenceCard`, `renderTable`
+- `renderTRT` (Turkish-local datetime), `getQueryParam`
+- `detailUrl(id)`, `decisionsUrl(ticker)`, `shortId(uuid)`
+- `parseJsonb(v)` — handles api-gateway's stringified jsonb
+- `attachRefreshLoop(fn, ms)`, `hardRefresh()`
+
+### Filter behaviour
+
+`/v1/decisions/recent` supports `ticker` and `compliance_status` server-side.
+Date range, action, and confidence are applied **client-side** over the
+returned list (server caps at 200 rows). The confidence slider and date
+controls render normally today so the UI is exercised, but the date range and
+confidence will move server-side once endpoints support them.
+
+### Latest decision preview
+
+`latest-preview.js` polls `/v1/decisions/recent?limit=1` every 30s and fills
+the "Son karar / Latest" card on the home page. Hidden when there are zero
+decisions.
 
 ## Preview locally
 

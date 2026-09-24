@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Kararlar / Decisions — Finance AI V3 karar listesi." />
+  <title>Kararlar / Decisions — Finance AI V3</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+  <style>
+    /* ===== Hermes-aligned palette via CSS vars (shared with index.html) ===== */
+    :root {
+      --bg:           #0b0d12;
+      --foreground:   #e6e8ee;
+      --muted:        #8a91a3;
+      --muted-foreground:#8a91a3;
+      --card:         #12151c;
+      --code-bg:      #0f1218;
+      --border:       #232733;
+      --accent:       #4ade80;
+      --accent-dim:   #22c55e;
+      --danger:       #ef4444;
+      --warn:         #f59e0b;
+      --link:         #60a5fa;
+      --bullish:      #4ade80;
+      --bearish:      #ef4444;
+      --radius:       10px;
+      --max-width:    1080px;
+      --gap:          16px;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: var(--bg);
+      color: var(--foreground);
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+                   "Helvetica Neue", Arial, sans-serif;
+      font-size: 15px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    a { color: var(--link); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    main {
+      max-width: var(--max-width);
+      margin: 0 auto;
+      padding: 24px 16px 48px;
+      display: flex;
+      flex-direction: column;
+      gap: var(--gap);
+    }
+
+    /* ===== Header ===== */
+    header.app-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+    }
+    .brand h1 {
+      margin: 0;
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+    }
+    .brand .subtitle {
+      margin: 2px 0 0;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .brand .back-link {
+      display: inline-block;
+      margin-bottom: 4px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .brand .back-link:hover { color: var(--link); }
+
+    /* ===== Cards ===== */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+    }
+    .card h2 {
+      margin: 0 0 12px;
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    /* ===== Filters bar ===== */
+    .filters {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      gap: 12px;
+      align-items: end;
+    }
+    .filters .field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 0;
+    }
+    .filters label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--muted);
+    }
+    .filters input[type="date"],
+    .filters input[type="text"],
+    .filters select {
+      background: var(--code-bg);
+      color: var(--foreground);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 6px 8px;
+      font-size: 13px;
+      font-family: inherit;
+      width: 100%;
+    }
+    .filters input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent);
+    }
+    .filters .range-readout {
+      font-size: 11px;
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
+    }
+    .filters .field[data-disabled="true"] input,
+    .filters .field[data-disabled="true"] select {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+    .filters .field[data-disabled="true"]::after {
+      content: "yakında / coming soon";
+      font-size: 10px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+    .filters .actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      justify-content: flex-end;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 14px;
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--foreground);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .btn:hover { border-color: var(--accent-dim); }
+    .btn-primary {
+      background: rgba(74, 222, 128, 0.08);
+      border-color: var(--accent-dim);
+      color: var(--accent);
+    }
+
+    /* ===== Table ===== */
+    .table-wrap { overflow-x: auto; }
+    table.data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      font-variant-numeric: tabular-nums;
+    }
+    table.data-table th,
+    table.data-table td {
+      text-align: left;
+      padding: 9px 12px;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+    table.data-table th {
+      font-weight: 600;
+      color: var(--muted);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      position: sticky;
+      top: 0;
+      background: var(--card);
+    }
+    table.data-table tbody tr {
+      cursor: pointer;
+      transition: background-color 0.1s;
+    }
+    table.data-table tbody tr:hover {
+      background: rgba(74, 222, 128, 0.06);
+    }
+    .num, .mono { font-variant-numeric: tabular-nums; }
+    .num { text-align: right; }
+
+    /* ===== Badges ===== */
+    .badge {
+      display: inline-block;
+      padding: 3px 9px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      white-space: nowrap;
+    }
+    .badge.action-buy        { color: var(--accent); border-color: var(--accent-dim); }
+    .badge.action-sell       { color: var(--danger); border-color: var(--danger); }
+    .badge.action-hold       { color: var(--warn);   border-color: var(--warn); }
+    .badge.action-reduce     { color: var(--warn);   border-color: var(--warn); }
+    .badge.action-insufficient{ color: var(--muted); border-color: var(--muted); }
+
+    .badge.compliance-approved { color: var(--accent); border-color: var(--accent-dim); }
+    .badge.compliance-pending  { color: var(--warn);   border-color: var(--warn); }
+    .badge.compliance-blocked  { color: var(--danger); border-color: var(--danger); }
+    .badge.compliance-review   { color: var(--link);   border-color: var(--link); }
+    .badge.compliance-flagged  { color: var(--danger); border-color: var(--danger); }
+    .badge.compliance-unknown  { color: var(--muted);  border-color: var(--muted); }
+
+    /* ===== Confidence meter (vertical, inline) ===== */
+    .confidence-meter {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      width: 26px;
+      height: 46px;
+      position: relative;
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .confidence-meter .bar {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: var(--confidence-color, var(--accent));
+      transition: height 0.3s ease;
+    }
+    .confidence-meter .value {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 9px;
+      font-weight: 700;
+      color: var(--foreground);
+      text-shadow: 0 0 2px rgba(0,0,0,0.6);
+      pointer-events: none;
+    }
+
+    /* ===== Refresh indicator ===== */
+    .refresh-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .refresh-indicator .spinner {
+      width: 10px;
+      height: 10px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      display: none;
+      animation: spin 0.8s linear infinite;
+    }
+    .refresh-indicator.is-loading .spinner { display: inline-block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ===== Empty / error states ===== */
+    .empty-state {
+      padding: 24px;
+      color: var(--muted);
+      font-size: 13px;
+      text-align: center;
+    }
+    .error-state {
+      padding: 12px;
+      color: var(--danger);
+      background: rgba(239, 68, 68, 0.08);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      border-radius: 6px;
+      font-size: 12px;
+      margin-bottom: 12px;
+    }
+
+    /* ===== Footer ===== */
+    footer.app-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+      font-size: 11px;
+      color: var(--muted);
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    /* ===== Mobile ===== */
+    @media (max-width: 720px) {
+      main { padding: 16px 12px 32px; }
+      .brand h1 { font-size: 18px; }
+      .card { padding: 12px; }
+      .filters { grid-template-columns: repeat(2, 1fr); }
+      table.data-table th, table.data-table td { padding: 6px 8px; font-size: 12px; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <!-- ===== Header ===== -->
+    <header class="app-header">
+      <div class="brand">
+        <a class="back-link" href="index.html">← Ana sayfa / Overview</a>
+        <h1>Kararlar / Decisions</h1>
+        <p class="subtitle">Son alınan kararlar — tarih, sembol, aksiyon ve güven filtresi</p>
+      </div>
+      <span class="refresh-indicator" id="refresh-indicator" aria-live="polite">
+        <span class="spinner" aria-hidden="true"></span>
+        <span class="text">yenileme — 30sn</span>
+      </span>
+    </header>
+
+    <!-- ===== Filters ===== -->
+    <section class="card" aria-labelledby="filters-heading">
+      <h2 id="filters-heading">Filtreler / Filters</h2>
+      <div class="filters" id="filters-form">
+        <div class="field">
+          <label for="f-from">Başlangıç / From</label>
+          <input type="date" id="f-from" />
+        </div>
+        <div class="field">
+          <label for="f-to">Bitiş / To</label>
+          <input type="date" id="f-to" />
+        </div>
+        <div class="field">
+          <label for="f-ticker">Sembol / Ticker</label>
+          <input type="text" id="f-ticker" list="ticker-list" placeholder="örn. THYAO" autocomplete="off" />
+          <datalist id="ticker-list"></datalist>
+        </div>
+        <div class="field">
+          <label for="f-action">Aksiyon / Action</label>
+          <select id="f-action">
+            <option value="">tümü / all</option>
+            <option value="BUY">BUY</option>
+            <option value="SELL">SELL</option>
+            <option value="HOLD">HOLD</option>
+            <option value="REDUCE">REDUCE</option>
+            <option value="INSUFFICIENT_EVIDENCE">INSUFFICIENT_EVIDENCE</option>
+          </select>
+        </div>
+        <div class="field" data-disabled="true" title="Yakında / Coming soon">
+          <label for="f-confidence">Güven / Confidence</label>
+          <input type="range" id="f-confidence" min="0" max="100" value="0" />
+          <span class="range-readout" id="f-confidence-readout">≥ 0%</span>
+        </div>
+        <div class="field">
+          <label for="f-compliance">Uyum / Compliance</label>
+          <select id="f-compliance">
+            <option value="">tümü / any</option>
+            <option value="APPROVED">APPROVED</option>
+            <option value="PENDING">PENDING</option>
+            <option value="BLOCKED">BLOCKED</option>
+          </select>
+        </div>
+        <div class="field actions">
+          <button type="button" class="btn" id="f-clear">Temizle / Clear</button>
+          <button type="button" class="btn btn-primary" id="f-refresh">Yenile / Refresh</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Results ===== -->
+    <section class="card" aria-labelledby="results-heading">
+      <h2 id="results-heading">Sonuçlar / Results <span id="results-count" style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted)"></span></h2>
+      <div id="results-error"></div>
+      <div id="results-host"></div>
+    </section>
+
+    <!-- ===== Footer ===== -->
+    <footer class="app-footer">
+      <span id="last-updated"></span>
+      <span><a href="index.html">Ana sayfa / Overview</a></span>
+    </footer>
+  </main>
+
+  <script src="app.js" defer></script>
+  <script src="decisions.js" defer></script>
+</body>
+</html>

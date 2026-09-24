@@ -12,9 +12,17 @@ class DecisionEngineSettings(BaseSettings):
         extra="ignore",
     )
 
-    redis_url: str = "redis://localhost:6379/0"
-    database_url: str = "postgresql://postgres:postgres@localhost:5432/finance_ai"
-    
+    redis_host: str = "redis"
+    redis_port: int = 6379
+    redis_password: str = ""
+    redis_url: str = ""
+    postgres_host: str = "postgres"
+    postgres_port: int = 5432
+    postgres_user: str = "finance_ai_v3"
+    postgres_password: str = "dev_only_pw"
+    postgres_database: str = "finance_ai_v3"
+    database_url: str = ""
+
     # Evidence weights per stream
     technical_weight: float = 0.20
     fundamental_weight: float = 0.25
@@ -53,6 +61,23 @@ class DecisionEngineSettings(BaseSettings):
     
     log_level: str = "INFO"
     idempotency_key_ttl_seconds: int = 86400
+
+    def model_post_init(self, __context):
+        """Build redis_url and database_url from component fields if not directly provided."""
+        if not self.redis_url:
+            auth = f":{self.redis_password}@" if self.redis_password else ""
+            object.__setattr__(
+                self,
+                "redis_url",
+                f"redis://{auth}{self.redis_host}:{self.redis_port}/0",
+            )
+        if not self.database_url:
+            object.__setattr__(
+                self,
+                "database_url",
+                f"postgresql://{self.postgres_user}:{self.postgres_password}"
+                f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_database}",
+            )
 
 
 settings = DecisionEngineSettings()

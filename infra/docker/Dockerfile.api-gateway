@@ -25,6 +25,7 @@ WORKDIR /app
 COPY pyproject.toml uv.lock ./
 COPY apps/ ./apps/
 COPY services/ ./services/
+COPY scripts/ ./scripts/
 
 # Stub the api-gateway src dir so the workspace member resolves (it's just an
 # __init__.py that hatchling needs to claim the package).
@@ -39,7 +40,7 @@ FROM python:3.12-slim AS runtime
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PATH="/app/.venv/bin:${PATH}" \
-    PYTHONPATH="/app/apps/api-gateway/src:/app/services/shared/src"
+    PYTHONPATH="/app/apps/api-gateway/src:/app/services/shared/src:/app/scripts"
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends curl ca-certificates tini \
@@ -52,6 +53,7 @@ WORKDIR /app
 COPY --from=deps --chown=app:app /app/.venv /app/.venv
 COPY --from=deps --chown=app:app /app/apps /app/apps
 COPY --from=deps --chown=app:app /app/services /app/services
+COPY --from=deps --chown=app:app /app/scripts /app/scripts
 
 # Drop in real api-gateway source (overwrites the stub we created in deps stage).
 COPY --chown=app:app apps/api-gateway/src/ /app/apps/api-gateway/src/
