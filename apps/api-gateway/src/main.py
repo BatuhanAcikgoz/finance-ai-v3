@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from middleware.logging import LoggingMiddleware
 from middleware.rate_limit import RateLimitMiddleware
 from routes import (
+    admin,
     agents,
     alerts,
     auth,
@@ -80,6 +81,7 @@ app.include_router(agents.router, prefix="/v1/agents", tags=["Agents"])
 app.include_router(backtest.router, prefix="/v1/backtest", tags=["Backtest"])
 app.include_router(settings.router, prefix="/v1/settings", tags=["Settings"])
 app.include_router(events.router, prefix="/v1/events", tags=["Events"])
+app.include_router(admin.router, prefix="/v1/admin", tags=["Admin"])
 
 
 @app.get("/")

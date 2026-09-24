@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Yönetim / Admin — Finance AI V3 LLM keys, providers, system, audit." />
+  <title>Yönetim / Admin — Finance AI V3</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+  <link rel="stylesheet" href="styles.css" />
+
+  <script>
+    // Pre-paint theme bootstrap — runs before any CSS paints.
+    (function () {
+      try {
+        var t = localStorage.getItem('finance-ai.theme');
+        if (t !== 'light' && t !== 'dark') {
+          t = (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark';
+        }
+        document.documentElement.setAttribute('data-theme', t);
+      } catch (e) {
+        document.documentElement.setAttribute('data-theme', 'dark');
+      }
+    })();
+  </script>
+</head>
+<body>
+  <div class="bg-mesh" aria-hidden="true">
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+    <div class="blob blob-3"></div>
+  </div>
+
+  <div class="app">
+
+    <nav class="app-nav" aria-label="primary">
+      <a class="nav-brand" href="index.html">
+        <span class="nav-brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/></svg>
+        </span>
+        Finance AI V3
+      </a>
+      <div class="nav-links">
+        <a href="index.html">Genel Bakış / Overview</a>
+        <a href="decisions.html">Kararlar / Decisions</a>
+        <a href="portfolio.html">Portföy / Portfolio</a>
+        <a href="alerts.html">Uyarılar / Alerts</a>
+        <a href="system-health.html">Sistem Sağlığı / System Health</a>
+        <a href="settings.html">Ayarlar / Settings</a>
+        <a href="admin.html" class="is-active" data-admin-link>Yönetim / Admin</a>
+      </div>
+      <div class="nav-right">
+        <button type="button" class="theme-toggle" data-theme-toggle aria-label="Tema değiştir / Toggle theme" aria-pressed="true" title="Karanlık mod / Dark mode (tıklayın → aydınlık)"></button>
+        <span class="refresh-indicator" id="refresh-indicator" aria-live="polite">
+          <span class="spinner" aria-hidden="true"></span>
+          <span class="text" id="refresh-text">idle</span>
+        </span>
+      </div>
+    </nav>
+
+    <main class="container admin-section">
+
+      <header class="app-header">
+        <div class="brand">
+          <a class="back-link" href="index.html">← Ana sayfa / Home</a>
+          <h1>Yönetim / Admin</h1>
+          <p class="subtitle">LLM anahtarları, sağlayıcılar, sistem durumu ve denetim kaydı / LLM keys, providers, system & audit log</p>
+        </div>
+      </header>
+
+      <!-- ===== Token bar ===== -->
+      <section class="card glass">
+        <h2>Erişim Anahtarı / Admin Token</h2>
+        <div class="admin-token-bar">
+          <input type="password" id="admin-token" placeholder="X-Admin-Token (örn. dev_admin_token_change_me)" autocomplete="off" />
+          <button class="btn" id="admin-token-save" type="button">Kaydet / Save</button>
+          <button class="btn" id="admin-token-clear" type="button">Temizle / Clear</button>
+          <button class="btn btn-primary" id="admin-test" type="button">Bağlantıyı Test Et / Test Connection</button>
+          <span class="hint">
+            Bu anahtar tarayıcıda <code>localStorage['finance-ai.admin_token']</code> altında saklanır.
+            Tüm <code>/api/v1/admin/*</code> çağrılarına <code>X-Admin-Token</code> başlığı otomatik eklenir.
+            <em>Stored only in your browser; never sent anywhere except api-gateway.</em>
+          </span>
+        </div>
+      </section>
+
+      <!-- ===== LLM KEYS ===== -->
+      <section class="card glass" aria-labelledby="keys-heading">
+        <div class="card-header">
+          <h2 id="keys-heading">LLM Anahtarları / LLM Keys</h2>
+          <div style="display:flex;gap:8px;">
+            <button class="btn" id="keys-refresh" type="button">Yenile / Refresh</button>
+            <button class="btn btn-primary" id="keys-add" type="button">+ Yeni Anahtar / New Key</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <div class="llm-key-row header">
+            <div>Sağlayıcı / Provider</div>
+            <div>Model</div>
+            <div>Anahtar (maskeli) / Key</div>
+            <div>Son Kullanım / Last Used</div>
+            <div>Durum / Status</div>
+            <div>Maliyet / Cost (USD)</div>
+            <div>İşlemler / Actions</div>
+            <div></div>
+          </div>
+          <div id="llm-keys-body">
+            <div class="llm-key-row empty-state" style="grid-column: 1 / -1;">Yükleniyor… / Loading…</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== PROVIDERS ===== -->
+      <section class="card glass" aria-labelledby="providers-heading">
+        <div class="card-header">
+          <h2 id="providers-heading">LLM Sağlayıcılar / Providers</h2>
+          <button class="btn" id="providers-refresh" type="button">Yenile / Refresh</button>
+        </div>
+        <div class="providers-grid" id="providers-grid">
+          <div class="empty-state">Yükleniyor… / Loading…</div>
+        </div>
+      </section>
+
+      <!-- ===== SYSTEM ===== -->
+      <section class="card glass" aria-labelledby="sys-heading">
+        <div class="card-header">
+          <h2 id="sys-heading">Sistem / System</h2>
+          <span class="link" id="sys-meta">—</span>
+        </div>
+        <div class="system-grid" id="sys-grid">
+          <div class="empty-state" style="grid-column: 1 / -1;">Ölçümler yükleniyor… / Loading metrics…</div>
+        </div>
+      </section>
+
+      <!-- ===== AUDIT LOG ===== -->
+      <section class="card glass" aria-labelledby="audit-heading">
+        <div class="card-header">
+          <h2 id="audit-heading">Denetim Kaydı / Audit Log</h2>
+          <button class="btn" id="audit-refresh" type="button">Yenile / Refresh</button>
+        </div>
+        <ul class="audit-list" id="audit-list">
+          <li class="empty-state" style="padding-left:32px;">Yükleniyor… / Loading…</li>
+        </ul>
+      </section>
+
+    </main>
+
+    <footer class="app-footer">
+      <div class="container footer-row">
+        <span id="last-updated">—</span>
+        <span>API: /api/v1/admin/* · Oto-yenileme / auto-refresh: 30s</span>
+      </div>
+    </footer>
+
+  </div>
+
+  <script src="app.js" defer></script>
+  <script src="admin.js" defer></script>
+</body>
+</html>

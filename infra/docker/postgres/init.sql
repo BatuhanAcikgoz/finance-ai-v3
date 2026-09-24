@@ -479,6 +479,53 @@ CREATE TABLE IF NOT EXISTS audit.workflow_executions (
 CREATE INDEX IF NOT EXISTS idx_workflow_executions_name ON audit.workflow_executions(workflow_name, started_at DESC);
 
 -- =============================================================================
+-- admin schema (LLM key registry + audit log of admin actions)
+-- =============================================================================
+CREATE SCHEMA IF NOT EXISTS admin;
+
+CREATE TABLE IF NOT EXISTS admin.llm_keys (
+    key_id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    provider        VARCHAR(32) NOT NULL,
+    model           VARCHAR(64) NOT NULL,
+    label           VARCHAR(128),
+    api_key         TEXT NOT NULL,
+    masked_key      VARCHAR(64) NOT NULL,
+    status          VARCHAR(16) NOT NULL DEFAULT 'active',
+    cost_usd_total  NUMERIC(14,4) NOT NULL DEFAULT 0,
+    calls_total     BIGINT NOT NULL DEFAULT 0,
+    last_used_at    TIMESTAMPTZ,
+    last_error      TEXT,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS admin.llm_key_usage (
+    usage_id            BIGSERIAL PRIMARY KEY,
+    key_id              UUID NOT NULL REFERENCES admin.llm_keys(key_id) ON DELETE CASCADE,
+    ts                  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    cost_usd            NUMERIC(14,6),
+    prompt_tokens       INTEGER,
+    completion_tokens   INTEGER,
+    latency_ms          INTEGER,
+    status              VARCHAR(16),
+    error               TEXT
+);
+
+CREATE TABLE IF NOT EXISTS admin.audit_log (
+    log_id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    ts              TIMESTAMPTZ NOT NULL DEFAULT now(),
+    actor           VARCHAR(64),
+    action          VARCHAR(64),
+    target_type     VARCHAR(32),
+    target_id       VARCHAR(128),
+    summary         JSONB,
+    ip_addr         VARCHAR(64)
+);
+
+CREATE INDEX IF NOT EXISTS audit_log_ts_idx ON admin.audit_log (ts DESC);
+CREATE INDEX IF NOT EXISTS llm_key_usage_ts_idx ON admin.llm_key_usage (ts DESC);
+
+-- =============================================================================
 -- Grant permissions (assuming same user)
 -- =============================================================================
 -- GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA market_data TO finance_ai_v3;

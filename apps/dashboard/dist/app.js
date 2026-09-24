@@ -1146,3 +1146,193 @@
   // Existing index-page behaviour is fully untouched.
   window.FA = FA;
 })();
+
+/* ============================================================================
+ * 3D GLASSMORPHISM ADD-ON — Theme + Tilt-on-Hover + Admin Token helpers
+ * Kept in a separate IIFE so the original `FA` module stays untouched.
+ * Exposed as window.FA.ui (theme, toast, tilt, admin token).
+ * =========================================================================== */
+(function () {
+  'use strict';
+
+  var THEME_KEY     = 'finance-ai.theme';
+  var ADMIN_KEY_KEY = 'finance-ai.admin_token';
+
+  // Sun + Moon SVGs reused by every theme toggle.
+  var SUN_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>';
+  var MOON_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>';
+
+  /** Read the saved theme preference; falls back to system, then 'dark'. */
+  function readSavedTheme() {
+    try {
+      var v = localStorage.getItem(THEME_KEY);
+      if (v === 'light' || v === 'dark') return v;
+    } catch (e) {}
+    try {
+      if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
+        return 'light';
+      }
+    } catch (e) {}
+    return 'dark';
+  }
+
+  /** Apply a theme ('light' | 'dark') to <html> and update toggle buttons. */
+  function applyTheme(theme) {
+    var t = (theme === 'light') ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', t);
+    document.querySelectorAll('[data-theme-toggle]').forEach(function (btn) {
+      var sun = btn.querySelector('[data-theme-icon="light"]');
+      var moon = btn.querySelector('[data-theme-icon="dark"]');
+      if (sun) sun.classList.toggle('is-active', t === 'light');
+      if (moon) moon.classList.toggle('is-active', t === 'dark');
+      btn.setAttribute('aria-pressed', t === 'light' ? 'false' : 'true');
+      btn.setAttribute('title', t === 'light'
+        ? 'Aydınlık mod / Light mode (tıklayın → karanlık)'
+        : 'Karanlık mod / Dark mode (tıklayın → aydınlık)');
+    });
+    // Update admin-link lock state.
+    document.querySelectorAll('[data-admin-link]').forEach(function (a) {
+      var has = !!getAdminToken();
+      a.classList.toggle('is-locked', !has);
+    });
+    try { document.dispatchEvent(new CustomEvent('themechange', { detail: { theme: t } })); } catch (e) {}
+  }
+
+  /** Flip the theme and persist. */
+  function toggleTheme() {
+    var current = document.documentElement.getAttribute('data-theme') || 'dark';
+    var next = current === 'dark' ? 'light' : 'dark';
+    try { localStorage.setItem(THEME_KEY, next); } catch (e) {}
+    applyTheme(next);
+    return next;
+  }
+
+  /** Wire up the theme toggle button (creates one if missing) and bind clicks. */
+  function initThemeToggle() {
+    applyTheme(readSavedTheme());
+    // Auto-create a toggle if a placeholder exists but no button yet.
+    document.querySelectorAll('[data-theme-toggle]').forEach(function (btn) {
+      if (!btn.querySelector('[data-theme-icon]')) {
+        btn.innerHTML =
+          '<span class="theme-toggle-icon" data-theme-icon="light" aria-hidden="true">' + SUN_SVG + '</span>' +
+          '<span class="theme-toggle-icon" data-theme-icon="dark"  aria-hidden="true">' + MOON_SVG + '</span>';
+      }
+      btn.addEventListener('click', function (e) {
+        e.preventDefault();
+        toggleTheme();
+      });
+    });
+    // React to OS changes only when the user has NOT set a manual preference.
+    if (window.matchMedia) {
+      var mq = window.matchMedia('(prefers-color-scheme: dark)');
+      var handler = function (ev) {
+        try {
+          if (localStorage.getItem(THEME_KEY)) return;
+        } catch (e) {}
+        applyTheme(ev.matches ? 'dark' : 'light');
+      };
+      if (mq.addEventListener) mq.addEventListener('change', handler);
+      else if (mq.addListener) mq.addListener(handler);
+    }
+  }
+
+  // ---- Admin token helpers ------------------------------------------------
+  function getAdminToken() {
+    try {
+      var v = localStorage.getItem(ADMIN_KEY_KEY);
+      return v && v.trim() ? v.trim() : '';
+    } catch (e) { return ''; }
+  }
+  function setAdminToken(v) {
+    try {
+      if (v && v.trim()) localStorage.setItem(ADMIN_KEY_KEY, v.trim());
+      else localStorage.removeItem(ADMIN_KEY_KEY);
+    } catch (e) {}
+    document.querySelectorAll('[data-admin-link]').forEach(function (a) {
+      a.classList.toggle('is-locked', !getAdminToken());
+    });
+  }
+
+  /**
+   * Wrap fetch so every /api/* call automatically carries the admin token
+   * when present. Non-admin endpoints (e.g. /v1/market/*, /health/*) are not
+   * affected by default — opt in by passing { admin: true }.
+   */
+  function fetchAdmin(path, opts) {
+    opts = opts || {};
+    var headers = Object.assign({}, opts.headers || {});
+    var token = getAdminToken();
+    if (token) headers['X-Admin-Token'] = token;
+    return fetch(path, Object.assign({}, opts, { headers: headers }));
+  }
+
+  // ---- Tilt-on-hover for glass cards --------------------------------------
+  /** Attach mousemove tilt listeners to every .glass / .card element. */
+  function initTilt() {
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    var MAX_TILT = 4; // degrees
+    var els = document.querySelectorAll('.glass, .card');
+    els.forEach(function (el) {
+      if (el.dataset.tiltBound === '1') return;
+      el.dataset.tiltBound = '1';
+      el.addEventListener('mousemove', function (e) {
+        var r = el.getBoundingClientRect();
+        var px = (e.clientX - r.left) / r.width;
+        var py = (e.clientY - r.top) / r.height;
+        var rx = (0.5 - py) * MAX_TILT; // tilt toward top → rotateX negative
+        var ry = (px - 0.5) * MAX_TILT;
+        el.style.transform =
+          'perspective(var(--perspective)) translateZ(0) ' +
+          'rotateX(' + rx.toFixed(2) + 'deg) rotateY(' + ry.toFixed(2) + 'deg) translateY(-2px)';
+      });
+      el.addEventListener('mouseleave', function () {
+        el.style.transform = '';
+      });
+    });
+  }
+
+  // ---- Toast (Kaydedildi / Saved) ----------------------------------------
+  function toast(msg, ms) {
+    var t = document.createElement('div');
+    t.className = 'toast';
+    t.textContent = msg || 'Kaydedildi / Saved';
+    document.body.appendChild(t);
+    requestAnimationFrame(function () { t.classList.add('is-show'); });
+    setTimeout(function () {
+      t.classList.remove('is-show');
+      setTimeout(function () { t.remove(); }, 220);
+    }, ms || 2200);
+  }
+
+  // ---- Init on DOMContentLoaded -------------------------------------------
+  function boot() {
+    initThemeToggle();
+    initTilt();
+    document.querySelectorAll('[data-admin-link]').forEach(function (a) {
+      a.classList.toggle('is-locked', !getAdminToken());
+    });
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot);
+  } else {
+    boot();
+  }
+
+  // Public surface (extend, don't replace).
+  window.FA = window.FA || {};
+  window.FA.ui = {
+    applyTheme:      applyTheme,
+    toggleTheme:     toggleTheme,
+    getTheme:        function () { return document.documentElement.getAttribute('data-theme') || 'dark'; },
+    getAdminToken:   getAdminToken,
+    setAdminToken:   setAdminToken,
+    fetchAdmin:      fetchAdmin,
+    toast:           toast,
+    initTilt:        initTilt,
+    SUN_SVG:         SUN_SVG,
+    MOON_SVG:        MOON_SVG,
+  };
+
+  // Convenience global.
+  window.toggleTheme = toggleTheme;
+})();

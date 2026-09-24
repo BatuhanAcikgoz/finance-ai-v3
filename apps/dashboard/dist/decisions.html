@@ -1,7 +1,22 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-  <meta charset="UTF-8" />
+  
+  <script>
+  // Pre-paint theme bootstrap — runs before any CSS paints.
+  (function () {
+    try {
+      var t = localStorage.getItem('finance-ai.theme');
+      if (t !== 'light' && t !== 'dark') {
+        t = (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark';
+      }
+      document.documentElement.setAttribute('data-theme', t);
+    } catch (e) {
+      document.documentElement.setAttribute('data-theme', 'dark');
+    }
+  })();
+</script>
+<meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="description" content="Kararlar / Decisions — Finance AI V3 karar listesi." />
   <title>Kararlar / Decisions — Finance AI V3</title>
@@ -10,7 +25,11 @@
 </head>
 <body>
   <!-- Animated Apple gradient mesh — fixed, behind everything, non-interactive -->
-  <div class="bg-mesh" aria-hidden="true"></div>
+  <div class="bg-mesh" aria-hidden="true">
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+    <div class="blob blob-3"></div>
+  </div>
 
   <!-- ===== Shared top navigation (Liquid Glass) ===== -->
   <nav class="app-nav" aria-label="primary">
@@ -21,6 +40,7 @@
       Finance AI V3
     </a>
     <div class="nav-links">
+        <a href="settings.html">Ayarlar / Settings</a><a href="admin.html" data-admin-link>Yönetim / Admin</a>
       <a href="index.html">Genel Bakış / Overview</a>
       <a href="decisions.html" class="is-active">Kararlar / Decisions</a>
       <a href="portfolio.html">Portföy / Portfolio</a>
@@ -28,6 +48,7 @@
       <a href="system-health.html">Sistem Sağlığı / System Health</a>
     </div>
     <div class="nav-right">
+        <button type="button" class="theme-toggle" data-theme-toggle aria-label="Tema değiştir / Toggle theme" aria-pressed="true" title="Karanlık mod / Dark mode (tıklayın → aydınlık)"></button>
       <span class="refresh-indicator" id="refresh-indicator" aria-live="polite">
         <span class="spinner" aria-hidden="true"></span>
         <span class="text">yenileme — 30sn / refresh — 30s</span>
