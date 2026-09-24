@@ -1,0 +1,97 @@
+{
+  "name": "Report Generator Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "cronExpression": "30 8 * * *" 
+        }
+      },
+      "id": "morning-trigger",
+      "name": "Morning Briefing Trigger (08:30)",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1.1
+    },
+    {
+      "parameters": {
+        "rule": {
+          "cronExpression": "0 19 * * 5"
+        }
+      },
+      "id": "weekly-trigger",
+      "name": "Weekly Trigger (Friday 19:30)",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1.1
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT decision_id, ticker, decision_type, action, rationale, confidence, created_at FROM decision.decisions WHERE portfolio_id = 'default' AND created_at > NOW() - INTERVAL '24 hours' ORDER BY created_at DESC"
+      },
+      "id": "fetch-decisions",
+      "name": "Fetch Decisions",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1
+    },
+    {
+      "parameters": {
+        "functionCode": "// Generate report narrative\nconst decisions = $input.all();\n\nconst tickerGroups = {};\nfor (const d of decisions) {\n  const ticker = d.json.ticker;\n  if (!tickerGroups[ticker]) tickerGroups[ticker] = [];\n  tickerGroups[ticker].push(d.json);\n}\n\nconst decisionGroups = Object.entries(tickerGroups).map(([ticker, decs]) => ({\n  ticker,\n  decision_ids: decs.map(d => d.decision_id),\n  narrative_tr: `${ticker} için ${decs.length} karar alındı.`\n}));\n\nreturn [{\n  json: {\n    report_type: 'MORNING_BRIEFING',\n    period_start: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),\n    period_end: new Date().toISOString(),\n    portfolio_id: 'default',\n    executive_summary_tr: `${decisions.length} karar analiz edildi.`,\n    decisions_count: decisions.length,\n    decision_groups: decisionGroups,\n    action_items_tr: ['Piyasayı izlemeye devam edin.'],\n    word_count: decisions.length * 10\n  }\n}];"
+      },
+      "id": "generate-content",
+      "name": "Generate Content",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO reports.reports (report_id, report_type, period_start, period_end, portfolio_id, executive_summary_tr, decisions_count, decision_groups, action_items_tr, word_count, generated_at) VALUES '{{ $json.report_id }}', '{{ $json.report_type }}', '{{ $json.period_start }}', '{{ $json.period_end }}', '{{ $json.portfolio_id }}', '{{ $json.executive_summary_tr }}', {{ $json.decisions_count }}, '{{ $json.decision_groups }}', '{{ $json.action_items_tr }}', {{ $json.word_count }}, NOW()"
+      },
+      "id": "postgres-insert",
+      "name": "PostgreSQL Insert",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1
+    },
+    {
+      "parameters": {
+        "channel": "report.generated",
+        "message": "={{ $json }}"
+      },
+      "id": "redis-publish",
+      "name": "Redis Publish",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1
+    }
+  ],
+  "connections": {
+    "Morning Briefing Trigger (08:30)": {
+      "main": [
+        [
+          { "node": "Fetch Decisions", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Weekly Trigger (Friday 19:30)": {
+      "main": [
+        [
+          { "node": "Fetch Decisions", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Fetch Decisions": {
+      "main": [
+        [
+          { "node": "Generate Content", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Generate Content": {
+      "main": [
+        [
+          { "node": "PostgreSQL Insert", "type": "main", "index": 0 },
+          { "node": "Redis Publish", "type": "main", "index": 0 }
+        ]
+      ]
+    }
+  }
+}

@@ -1,0 +1,91 @@
+{
+  "name": "KAP Collector Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 5
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Schedule Trigger (5min)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1
+    },
+    {
+      "parameters": {
+        "url": "https://www.kap.org.tr/tr/api/v1/disclosures",
+        "queryParameters": {
+          "parameters": {
+            "maxResults": 100
+          }
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "kap-api",
+      "name": "KAP API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1
+    },
+    {
+      "parameters": {
+        "functionCode": "// Process KAP disclosures\nconst disclosures = $input.all();\nconst processed = [];\n\nfor (const item of disclosures) {\n  const disclosure = item.json;\n  processed.push({\n    publishing_id: disclosure.publishingId,\n    title: disclosure.title,\n    summary: disclosure.summary,\n    body: disclosure.content,\n    category: 'OTHER',\n    is_material: disclosure.disclosureType === 'MATERIAL_EVENT',\n    published_at: disclosure.publishDate,\n    ingested_at: new Date().toISOString(),\n    source_url: `https://www.kap.org.tr/tr/Bildir/${disclosure.publishingId}`\n  });\n}\n\nreturn processed.map(d => ({ json: d }));"
+      },
+      "id": "process",
+      "name": "Process Disclosures",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO kap.disclosures (publishing_id, title, summary, body, category, is_material, published_at, ingested_at, source_url) VALUES {{ $json.publishing_id }}, {{ $json.title }}, {{ $json.summary }}, {{ $json.body }}, {{ $json.category }}, {{ $json.is_material }}, {{ $json.published_at }}, {{ $json.ingested_at }}, {{ $json.source_url }}"
+      },
+      "id": "postgres-insert",
+      "name": "PostgreSQL Insert",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1
+    },
+    {
+      "parameters": {
+        "channel": "raw.kap.material",
+        "message": "={{ $json}}"
+      },
+      "id": "redis-publish-material",
+      "name": "Redis Publish Material",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1
+    }
+  ],
+  "connections": {
+    "Schedule Trigger (5min)": {
+      "main": [
+        [
+          { "node": "KAP API", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "KAP API": {
+      "main": [
+        [
+          { "node": "Process Disclosures", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Process Disclosures": {
+      "main": [
+        [
+          { "node": "PostgreSQL Insert", "type": "main", "index": 0 },
+          { "node": "Redis Publish Material", "type": "main", "index": 0 }
+        ]
+      ]
+    }
+  }
+}

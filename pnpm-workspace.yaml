@@ -1,0 +1,6 @@
+packages:
+  - 'apps/*'
+  - 'apps/dashboard'
+  - 'apps/api-gateway'
+allowBuilds:
+  unrs-resolver: true

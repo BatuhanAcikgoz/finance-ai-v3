@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://finance-ai-v3/schemas/kap_announcement.json",
+  "title": "KAPAnnouncement",
+  "description": "KAP (Public Disclosure Platform) announcement",
+  "type": "object",
+  "properties": {
+    "publishing_id": {
+      "type": "string",
+      "maxLength": 64,
+      "description": "KAP publishing ID"
+    },
+    "title": {
+      "type": "string",
+      "description": "Announcement title"
+    },
+    "summary": {
+      "type": ["string", "null"],
+      "description": "Brief summary"
+    },
+    "body": {
+      "type": "string",
+      "description": "Full announcement text"
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "FINANCIAL_REPORT",
+        "DIVIDEND",
+        "MA",
+        "BOARD_CHANGE",
+        "CAPITAL_ACTION",
+        "DISCLOSURE",
+        "MATERIAL_EVENT",
+        "GENERAL_ASSEMBLY",
+        "AUDITOR",
+        "RATING",
+        "LAWSUIT",
+        "INSIDER_TRADING",
+        "OTHER"
+      ],
+      "description": "Announcement category"
+    },
+    "is_material": {
+      "type": "boolean",
+      "description": "Whether this is a material event"
+    },
+    "material_type": {
+      "type": ["string", "null"],
+      "enum": ["EARNINGS", "DIVIDEND", "MA", "BOARD_CHANGE", "CAPITAL_ACTION", "OTHER"],
+      "description": "Type of material event"
+    },
+    "published_at": {
+      "$ref": "common/timestamp.json"
+    },
+    "ingested_at": {
+      "$ref": "common/timestamp.json"
+    },
+    "source_url": {
+      "type": "string",
+      "format": "uri",
+      "description": "KAP website URL"
+    },
+    "classification_confidence": {
+      "type": ["number", "null"],
+      "minimum": 0,
+      "maximum": 1,
+      "description": "LLM classification confidence"
+    },
+    "needs_review": {
+      "type": "boolean",
+      "description": "Requires human review"
+    },
+    "tickers": {
+      "type": "array",
+      "items": {
+        "$ref": "common/ticker.json"
+      },
+      "description": "Related tickers"
+    }
+  },
+  "required": ["publishing_id", "title", "body", "category", "is_material", "published_at", "ingested_at", "source_url"],
+  "additionalProperties": false
+}

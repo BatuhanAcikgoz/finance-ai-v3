@@ -1,0 +1,70 @@
+# Files and dirs docker buildx should NOT copy into the image.
+# Keeps the image small and the build fast.
+
+# VCS
+.git
+.gitignore
+.gitattributes
+.github
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv
+venv
+env
+*.egg-info
+.pytest_cache
+.mypy_cache
+.ruff_cache
+.coverage
+htmlcov
+.tox
+.dist
+
+# Node / Next (we ship a static HTML dashboard, not a built Next app)
+node_modules
+.next
+out
+.pnpm-store
+.npm
+.cache
+.turbo
+
+# Editors / IDEs
+.idea
+.vscode
+.cursor
+.DS_Store
+
+# Secrets (NEVER copy .env — .env.example is fine)
+.env
+.env.*
+!.env.example
+
+# Heavy / generated test fixtures (the report_generator alone has 122k lines of fixtures)
+services/report_generator/tests/fixtures/
+
+# Workspace debris
+junk
+plans
+docs
+workflows
+steps
+schemas
+agents
+infra/k8s
+infra/terraform
+infra/vault
+infra/docker/litellm/*.bak
+
+# Kilo editor data
+.kilo
+
+# Misc
+*.log
+logs/
+tmp/

@@ -1,0 +1,47 @@
+{
+  "$schema": "https://app.kilo.ai/config.json",
+
+  // ─── Project-level MCP servers (kilo.jsonc) ───────────────────────────────
+  //   Bu dosya FinanceAutomations projesine özgüdür.
+  //   Global config: ~/.config/kilo/kilo.jsonc — tüm projelerde geçerli.
+  //   Precedence: project > global, aynı isimde sunucu projedeki kazanır.
+  //
+  //   Bu projede devmem_mcp'yi başlatıyoruz:
+  //   - LLM       : MiniMax-M3 (OpenAI-uyumlu, https://api.minimax.io/v1)
+  //   - Embedding : BGE-M3 (Ollama) → 1024-dim
+  //   - Vector DB : Qdrant @ http://localhost:6333 (collection=code_memories_v2)
+  //   - Project   : FinanceAutomations (her workspace kendi izole hafızasına sahip)
+
+  "mcp": {
+    "code-memory": {
+      "type": "local",
+      "command": [
+        "/home/batuhanacikgoz04/mcp-servers/qdrant-memory/.venv/bin/python",
+        "/home/batuhanacikgoz04/mcp-servers/code-memory/devmem_mcp.py"
+      ],
+      "environment": {
+        // Project-scope config: Kilo {env:VAR} referansına izin vermiyor.
+        // MINIMAX_API_KEY burada VERILMIYOR; server kendisi iki yoldan okur:
+        //   1) shell ortam değişkeni (Kilo server process'ine inherit eder)
+        //   2) ~/.hermes/.env'deki MINIMAX_API_KEY (devmem_mcp.py fallback'i)
+        "CODE_MEMORY_PROJECT": "FinanceAutomations",
+        "MINIMAX_BASE_URL": "https://api.minimax.io/v1",
+        "MINIMAX_MODEL": "MiniMax-M3",
+        "EMBEDDING_MODEL": "bge-m3",
+        "EMBEDDING_DIM": "1024",
+        "COLLECTION_NAME": "code_memories_v2",
+        "QDRANT_URL": "http://localhost:6333",
+        "OLLAMA_BASE_URL": "http://localhost:11434"
+      },
+      "enabled": true,
+      "timeout": 30000
+    }
+  },
+
+  // Project-level rules: bu projeye özgü code-memory kullanım yönergeleri.
+  // Global rule (~/.config/kilo/rules/code-memory.md) tüm projelerde yüklenir;
+  // bu dosya onun üzerine yazmaz, EK olarak eklenir.
+  "instructions": [
+    ".kilo/rules/code-memory.md"
+  ]
+}

@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://finance-ai-v3/schemas/news_article.json",
+  "title": "NewsArticle",
+  "description": "News article from Turkish financial sources",
+  "type": "object",
+  "properties": {
+    "article_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique article identifier"
+    },
+    "source": {
+      "type": "string",
+      "enum": [
+        "BLOOMBERG_HT",
+        "AA",
+        "FOREX",
+        "REUTERS",
+        "BLOOMBERG",
+        "CNBC_E",
+        "DUNYA",
+        "CAPITAL",
+        "PARA",
+        "EKONOMIM",
+        "PWC_TURKIYE",
+        "BIGPARA"
+      ],
+      "description": "News source"
+    },
+    "url": {
+      "type": "string",
+      "format": "uri",
+      "description": "Original article URL"
+    },
+    "title": {
+      "type": "string",
+      "maxLength": 500,
+      "description": "Article headline"
+    },
+    "summary": {
+      "type": ["string", "null"],
+      "description": "Short summary or excerpt"
+    },
+    "body": {
+      "type": "string",
+      "description": "Full article body text"
+    },
+    "author": {
+      "type": ["string", "null"],
+      "maxLength": 200,
+      "description": "Article author"
+    },
+    "published_at": {
+      "$ref": "common/timestamp.json"
+    },
+    "ingested_at": {
+      "$ref": "common/timestamp.json"
+    },
+    "language": {
+      "type": "string",
+      "enum": ["tr", "en"],
+      "description": "Article language"
+    },
+    "content_hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "SHA-256 hash for deduplication"
+    },
+    "tickers": {
+      "type": "array",
+      "items": {
+        "$ref": "common/ticker.json"
+      },
+      "description": "Related BIST tickers"
+    },
+    "sectors": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Related sectors"
+    },
+    "topics": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Article topics"
+    }
+  },
+  "required": ["article_id", "source", "url", "title", "body", "published_at", "ingested_at", "language", "content_hash"],
+  "additionalProperties": false
+}

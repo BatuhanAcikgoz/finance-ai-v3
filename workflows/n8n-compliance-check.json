@@ -1,0 +1,141 @@
+{
+  "name": "Compliance Check Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "channel": "decision.created",
+        "options": {}
+      },
+      "id": "redis-trigger",
+      "name": "Redis Trigger",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "url": "http://compliance_agent:8000/compliance/validate",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "validate-decision",
+      "name": "Validate Decision",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "status-check",
+              "leftValue": "{{ $json.status }}",
+              "rightValue": "BLOCKED",
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-status",
+      "name": "Check Compliance Status",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE decision.decisions SET compliance_status = 'BLOCKED', compliance_reason = '{{ $json.reason }}' WHERE decision_id = '{{ $json.decision_id }}'"
+      },
+      "id": "block-decision",
+      "name": "Block Decision",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE decision.decisions SET compliance_status = 'APPROVED' WHERE decision_id = '{{ $json.decision_id }}'"
+      },
+      "id": "approve-decision",
+      "name": "Approve Decision",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO audit.compliance_audits (decision_id, status, reason, checked_at) VALUES ('{{ $json.decision_id }}', '{{ $json.status }}', '{{ $json.reason }}', NOW())"
+      },
+      "id": "log-audit",
+      "name": "Log Audit",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1
+    },
+    {
+      "parameters": {
+        "channel": "decision.compliance.completed",
+        "message": "={{ $json }}"
+      },
+      "id": "publish-result",
+      "name": "Publish Result",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1
+    }
+  ],
+  "connections": {
+    "Redis Trigger": {
+      "main": [
+        [
+          { "node": "Validate Decision", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Validate Decision": {
+      "main": [
+        [
+          { "node": "Check Compliance Status", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Check Compliance Status": {
+      "main": [
+        [
+          { "node": "Block Decision", "type": "main", "index": 0 }
+        ],
+        [
+          { "node": "Approve Decision", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Block Decision": {
+      "main": [
+        [
+          { "node": "Log Audit", "type": "main", "index": 0 },
+          { "node": "Publish Result", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Approve Decision": {
+      "main": [
+        [
+          { "node": "Log Audit", "type": "main", "index": 0 },
+          { "node": "Publish Result", "type": "main", "index": 0 }
+        ]
+      ]
+    }
+  }
+}

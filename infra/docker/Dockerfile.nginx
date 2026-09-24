@@ -1,0 +1,17 @@
+# Static dashboard image. Serves apps/dashboard/dist/ on :80 and reverse-proxies /api/ to api-gateway.
+FROM nginx:alpine
+
+RUN rm -rf /usr/share/nginx/html/* /etc/nginx/conf.d/default.conf
+
+# Static dashboard assets
+COPY apps/dashboard/dist/ /usr/share/nginx/html/
+
+# Reverse-proxy config
+COPY infra/docker/nginx.conf /etc/nginx/conf.d/default.conf
+
+EXPOSE 80
+
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
+    CMD wget -q -O /dev/null http://localhost/ || exit 1
+
+CMD ["nginx", "-g", "daemon off;"]

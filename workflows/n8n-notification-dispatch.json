@@ -1,0 +1,140 @@
+{
+  "name": "Notification Dispatch Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "channel": "report.generated",
+        "options": {}
+      },
+      "id": "report-trigger",
+      "name": "Report Trigger",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "channel": "decision.created",
+        "options": {}
+      },
+      "id": "decision-trigger",
+      "name": "Decision Trigger",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "channel": "alert.critical",
+        "options": {}
+      },
+      "id": "alert-trigger",
+      "name": "Alert Trigger",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "functionCode": "// Check deduplication and rate limits\nconst event = $input.first().json;\nconst dedupKey = `notif:dedup:${event.event_type}:${event.ticker || 'all'}:${new Date().toISOString().slice(0, 13)}`;\n\n// Rate limit check for CRITICAL alerts\nif (event.severity === 'CRITICAL') {\n  const rateKey = `notif:rate:${event.ticker}:${new Date().toISOString().slice(0, 10)}`;\n  // Would check Redis for rate limit\n}\n\nreturn [{ json: { ...event, dedupKey } }];"
+      },
+      "id": "check-dedup",
+      "name": "Check Dedup",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "url": "https://api.sendgrid.com/v3/mail/send",
+        "method": "POST",
+        "bodyParameters": {
+          "parameters": {
+            "personalizations": [{
+              "to": [{ "email": "user@example.com" }]
+            }],
+            "from": {
+              "email": "noreply@financeai.example.com",
+              "name": "Finance AI V3"
+            },
+            "subject": "={{ $json.event_type }}",
+            "content": [{
+              "type": "text/html",
+              "value": "=<h2>Finance AI V3 Bildirimi</h2><p>event_type: {{ $json.event_type }}</p><p>ticker: {{ $json.ticker }}</p>"
+            }]
+          }
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "send-email",
+      "name": "Send Email (SendGrid)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1
+    },
+    {
+      "parameters": {
+        "url": "https://hooks.slack.com/services/YOUR/WEBHOOK/URL",
+        "method": "POST",
+        "bodyParameters": {
+          "parameters": {
+            "text": "={{ $json.event_type }}",
+            "blocks": [{
+              "type": "section",
+              "text": {
+                "type": "mrkdwn",
+                "text": "*Finance AI V3*\nEvent: {{ $json.event_type }}\nTicker: {{ $json.ticker }}"
+              }
+            }]
+          }
+        },
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "send-slack",
+      "name": "Send Slack",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO notifications.deliveries (delivery_id, event_type, ticker, severity, channel_results, payload, delivered_at) VALUES (uuid_generate_v4(), '{{ $json.event_type }}', '{{ $json.ticker }}', '{{ $json.severity }}', '{\"email\": \"sent\"}', '{{ $json }}', NOW())"
+      },
+      "id": "log-delivery",
+      "name": "Log Delivery",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1
+    }
+  ],
+  "connections": {
+    "Report Trigger": {
+      "main": [
+        [
+          { "node": "Check Dedup", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Decision Trigger": {
+      "main": [
+        [
+          { "node": "Check Dedup", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Alert Trigger": {
+      "main": [
+        [
+          { "node": "Check Dedup", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Check Dedup": {
+      "main": [
+        [
+          { "node": "Send Email (SendGrid)", "type": "main", "index": 0 },
+          { "node": "Send Slack", "type": "main", "index": 0 },
+          { "node": "Log Delivery", "type": "main", "index": 0 }
+        ]
+      ]
+    }
+  }
+}

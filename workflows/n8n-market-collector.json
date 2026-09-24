@@ -1,0 +1,86 @@
+{
+  "name": "Market Collector Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 10,
+              "triggerAtMinute": 0
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1
+    },
+    {
+      "parameters": {
+        "url": "https://api.borsaistanbul.com/v1/quotes",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "bist-api",
+      "name": "BIST API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1
+    },
+    {
+      "parameters": {
+        "functionCode": "// Transform BIST data to ticks\nconst data = $input.all()[0].json;\nconst tickers = ['THYAO']; // POC ticker\nconst ticks = [];\n\nfor (const ticker of tickers) {\n  if (data[ticker]) {\n    ticks.push({\n      ticker,\n      price: data[ticker].lastPrice,\n      volume: data[ticker].volume,\n      bid: data[ticker].bid,\n      ask: data[ticker].ask,\n      exchange_timestamp: new Date().toISOString(),\n      source: 'BIST_API'\n    });\n  }\n}\n\nreturn ticks.map(tick => ({ json: tick }));"
+      },
+      "id": "transform",
+      "name": "Transform",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO market_data.ticks (ticker, price, volume, bid, ask, exchange_timestamp, source) VALUES {{ $json.ticker }}, {{ $json.price }}, {{ $json.volume }}, {{ $json.bid }}, {{ $json.ask }}, {{ $json.exchange_timestamp }}, {{ $json.source }}"
+      },
+      "id": "postgres-insert",
+      "name": "PostgreSQL Insert",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1
+    },
+    {
+      "parameters": {
+        "channel": "market.ticks",
+        "message": "={{ $json }}"
+      },
+      "id": "redis-publish",
+      "name": "Redis Publish",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          { "node": "BIST API", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "BIST API": {
+      "main": [
+        [
+          { "node": "Transform", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Transform": {
+      "main": [
+        [
+          { "node": "PostgreSQL Insert", "type": "main", "index": 0 },
+          { "node": "Redis Publish", "type": "main", "index": 0 }
+        ]
+      ]
+    }
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://finance-ai-v3/schemas/common/ticker.json",
+  "title": "Ticker",
+  "description": "BIST ticker symbol",
+  "type": "string",
+  "pattern": "^[A-Z]{3,5}$",
+  "examples": ["THYAO", "GARAN", "EREGL", "XU100"]
+}

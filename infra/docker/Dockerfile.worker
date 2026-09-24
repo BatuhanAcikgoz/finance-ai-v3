@@ -1,0 +1,67 @@
+# =============================================================================
+# Finance AI V3 - Generic worker image
+# =============================================================================
+# Build one image per worker via `--build-arg SERVICE_DIR=... SERVICE_PACKAGE=...`.
+# Runs `python -m ${SERVICE_PACKAGE}` in a loop until SIGTERM.
+# =============================================================================
+
+FROM python:3.12-slim AS deps
+
+ARG SERVICE_DIR=services/kap_collector
+ARG SERVICE_PACKAGE=kap_collector
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    UV_LINK_MODE=copy \
+    UV_PROJECT_ENVIRONMENT=/app/.venv
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl ca-certificates \
+    && rm -rf /var/lib/apt/lists/* \
+    && curl -LsSf https://astral.sh/uv/install.sh | sh \
+    && mv /root/.local/bin/uv /usr/local/bin/uv \
+    && chmod +x /usr/local/bin/uv
+
+WORKDIR /app
+
+COPY pyproject.toml uv.lock ./
+COPY apps/ ./apps/
+COPY services/ ./services/
+
+RUN uv sync --frozen --no-dev
+
+# =============================================================================
+FROM python:3.12-slim AS runtime
+
+ARG SERVICE_DIR=services/kap_collector
+ARG SERVICE_PACKAGE=kap_collector
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PATH="/app/.venv/bin:${PATH}" \
+    SERVICE_PACKAGE=${SERVICE_PACKAGE} \
+    PYTHONPATH="/app/services/${SERVICE_PACKAGE}/src:/app/apps/api-gateway/src:/app/services/shared/src"
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl ca-certificates tini \
+    && rm -rf /var/lib/apt/lists/* \
+    && groupadd --system --gid 1000 app \
+    && useradd --system --uid 1000 --gid app --create-home --shell /bin/bash app
+
+WORKDIR /app
+
+COPY --from=deps --chown=app:app /app/.venv /app/.venv
+COPY --from=deps --chown=app:app /app/apps /app/apps
+COPY --from=deps --chown=app:app /app/services /app/services
+
+# Drop in real worker source (overwrites the workspace copy from deps stage).
+COPY --chown=app:app ${SERVICE_DIR}/src/ /app/${SERVICE_DIR}/src/
+
+# Entry point: runs `python -m ${SERVICE_PACKAGE}`.
+COPY --chown=app:app infra/docker/worker-entrypoint.sh /usr/local/bin/worker-entrypoint.sh
+RUN chmod +x /usr/local/bin/worker-entrypoint.sh
+
+USER app
+
+ENTRYPOINT ["/usr/bin/tini", "--"]
+CMD ["worker-entrypoint.sh"]

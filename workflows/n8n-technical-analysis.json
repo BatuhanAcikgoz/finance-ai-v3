@@ -1,0 +1,78 @@
+{
+  "name": "Technical Analysis Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "channel": "raw.market.bar.close",
+        "options": {}
+      },
+      "id": "redis-trigger",
+      "name": "Redis Trigger",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT open, high, low, close, volume, bar_end FROM market_data.bars WHERE ticker = '{{ $json.ticker }}' AND timeframe = '{{ $json.timeframe }}' ORDER BY bar_end DESC LIMIT 200"
+      },
+      "id": "fetch-bars",
+      "name": "Fetch Bars",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1
+    },
+    {
+      "parameters": {
+        "functionCode": "// Compute technical indicators using pandas-ta\nconst bars = $input.all();\nconst closes = bars.map(b => b.json.close);\nconst highs = bars.map(b => b.json.high);\nconst lows = bars.map(b => b.json.low);\nconst volumes = bars.map(b => b.json.volume);\n\n// Placeholder - in production, use Python node or external service\nconst indicators = {\n  sma_20: closes.slice(0, 20).reduce((a, b) => a + b, 0) / 20,\n  sma_50: closes.slice(0, 50).reduce((a, b) => a + b, 0) / 50,\n  rsi: 50, // Placeholder\n  macd: 0.5, // Placeholder\n  signals: []\n};\n\nreturn [{ json: indicators }];"
+      },
+      "id": "compute-indicators",
+      "name": "Compute Indicators",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO analysis.technical_indicators (ticker, timeframe, bar_time, sma_20, sma_50, rsi, macd, computed_at) VALUES '{{ $json.ticker }}', '{{ $json.timeframe }}', '{{ $json.bar_end }}', {{ $json.sma_20 }}, {{ $json.sma_50 }}, {{ $json.rsi }}, {{ $json.macd }}, NOW()"
+      },
+      "id": "postgres-insert",
+      "name": "PostgreSQL Insert",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1
+    },
+    {
+      "parameters": {
+        "channel": "analysis.technical.signal",
+        "message": "={{ $json }}"
+      },
+      "id": "redis-publish",
+      "name": "Redis Publish Signal",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1
+    }
+  ],
+  "connections": {
+    "Redis Trigger": {
+      "main": [
+        [
+          { "node": "Fetch Bars", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Fetch Bars": {
+      "main": [
+        [
+          { "node": "Compute Indicators", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Compute Indicators": {
+      "main": [
+        [
+          { "node": "PostgreSQL Insert", "type": "main", "index": 0 },
+          { "node": "Redis Publish Signal", "type": "main", "index": 0 }
+        ]
+      ]
+    }
+  }
+}

@@ -1,0 +1,271 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  PYTHON_VERSION: "3.12"
+  UV_VERSION: "0.2.0"
+  NODE_VERSION: "20"
+
+jobs:
+  # ===========================================================================
+  # Lint & Type Check
+  # ===========================================================================
+  lint-and-typecheck:
+    name: Lint & Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install uv
+        run: pip install uv==${{ env.UV_VERSION }}
+
+      - name: Cache uv
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/uv
+          key: ${{ runner.os }}-uv-${{ env.UV_VERSION }}-${{ hashFiles('**/pyproject.toml') }}
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Run ruff linter
+        run: uv run ruff check services/ apps/
+
+      - name: Check code format
+        run: uv run ruff format --check services/ apps/
+
+      - name: Run mypy type checker
+        run: uv run mypy --strict services/ apps/
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install pnpm
+        run: npm install -g pnpm@9
+
+      - name: Install dashboard dependencies
+        run: pnpm install --frozen-lockfile
+        working-directory: apps/dashboard
+
+      - name: Lint dashboard
+        run: pnpm --filter dashboard lint || true
+
+      - name: Type-check dashboard
+        run: pnpm --filter dashboard type-check || true
+
+  # ===========================================================================
+  # Unit Tests
+  # ===========================================================================
+  test-unit:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: finance_ai_v3_test
+          POSTGRES_USER: finance_ai_v3
+          POSTGRES_PASSWORD: test_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      qdrant:
+        image: qdrant/qdrant:v1.10.1
+        ports:
+          - 6333:6333
+          - 6334:6334
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install uv
+        run: pip install uv==${{ env.UV_VERSION }}
+
+      - name: Cache uv
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/uv
+          key: ${{ runner.os }}-uv-${{ env.UV_VERSION }}-${{ hashFiles('**/pyproject.toml') }}
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Run unit tests
+        run: uv run pytest tests/unit/ -v --cov=services --cov=apps --cov-report=xml --cov-fail-under=80
+        env:
+          POSTGRES_HOST: localhost
+          POSTGRES_PORT: 5432
+          POSTGRES_DB: finance_ai_v3_test
+          POSTGRES_USER: finance_ai_v3
+          POSTGRES_PASSWORD: test_password
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+          QDRANT_HOST: localhost
+          QDRANT_PORT: 6333
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage.xml
+          fail_ci_if_error: false
+
+  # ===========================================================================
+  # Integration Tests
+  # ===========================================================================
+  test-integration:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install uv
+        run: pip install uv==${{ env.UV_VERSION }}
+
+      - name: Start Docker Compose
+        run: docker compose -f infra/docker/docker-compose.yml up -d
+
+      - name: Wait for services
+        run: sleep 30 && docker compose -f infra/docker/docker-compose.yml ps
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Run integration tests
+        run: uv run pytest tests/integration/ -v
+        env:
+          POSTGRES_HOST: localhost
+          POSTGRES_PORT: 5432
+          POSTGRES_DB: finance_ai_v3
+          POSTGRES_USER: finance_ai_v3
+          POSTGRES_PASSWORD: CHANGE_ME_IN_PRODUCTION
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+          QDRANT_HOST: localhost
+          QDRANT_PORT: 6333
+
+      - name: Stop Docker Compose
+        if: always()
+        run: docker compose -f infra/docker/docker-compose.yml down
+
+  # ===========================================================================
+  # Security Scan
+  # ===========================================================================
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install uv
+        run: pip install uv==${{ env.UV_VERSION }}
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Run Bandit SAST
+        run: uv run bandit -r services/ apps/ -f json -o bandit.json || true
+
+      - name: Run Safety check
+        run: uv run pip-audit || true
+
+      - name: Run TruffleHog
+        run: |
+          if command -v trufflehog &> /dev/null; then
+            trufflehog filesystem . --json || true
+          else
+            echo "TruffleHog not installed, skipping..."
+          fi
+
+  # ===========================================================================
+  # Build Docker Images
+  # ===========================================================================
+  docker-build:
+    name: Build Docker Images
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build market_collector
+        uses: docker/build-push-action@v5
+        with:
+          context: services/market_collector
+          push: false
+          tags: finance-ai-v3/market-collector:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build api-gateway
+        uses: docker/build-push-action@v5
+        with:
+          context: apps/api-gateway
+          push: false
+          tags: finance-ai-v3/api-gateway:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build dashboard
+        uses: docker/build-push-action@v5
+        with:
+          context: apps/dashboard
+          push: false
+          tags: finance-ai-v3/dashboard:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

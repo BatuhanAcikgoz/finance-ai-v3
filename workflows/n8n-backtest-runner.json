@@ -1,0 +1,105 @@
+{
+  "name": "Backtest Runner Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 6,
+              "triggerAtMinute": 0,
+              "weekdays": ["Monday"]
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "scheduler-trigger",
+      "name": "Scheduler (Monday 06:00)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1
+    },
+    {
+      "parameters": {
+        "url": "http://backtest_agent:8000/backtest/run",
+        "method": "POST",
+        "body": {
+          "lookback_weeks": 4
+        },
+        "options": {
+          "timeout": 300000
+        }
+      },
+      "id": "run-backtest",
+      "name": "Run Backtest",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO backtest.backtests (report_id, start_date, end_date, total_decisions, hit_rate, generated_at) VALUES ('{{ $json.report.report_id }}', '{{ $json.report.start_date }}', '{{ $json.report.end_date }}', {{ $json.report.total_decisions }}, {{ $json.report.overall_hit_rate }}, '{{ $json.report.generated_at }}')"
+      },
+      "id": "store-report",
+      "name": "Store Report",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE decision_engine.evidence_weights SET technical = {{ $json.report.weight_adjustments[0].proposed_weight }}, fundamental = {{ $json.report.weight_adjustments[1].proposed_weight }}, macro = {{ $json.report.weight_adjustments[2].proposed_weight }}, news = {{ $json.report.weight_adjustments[3].proposed_weight }}, sentiment = {{ $json.report.weight_adjustments[4].proposed_weight }}, sector = {{ $json.report.weight_adjustments[5].proposed_weight }}, version = version + 1, updated_at = NOW() WHERE approved = true"
+      },
+      "id": "update-weights",
+      "name": "Update Evidence Weights",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1
+    },
+    {
+      "parameters": {
+        "channel": "backtest.report.completed",
+        "message": "={{ $json }}"
+      },
+      "id": "publish-report",
+      "name": "Publish Report Event",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "to": "{{ $env.ADMIN_EMAIL }}",
+        "subject": "Backtest Report: {{ $json.report.report_id }}",
+        "body": "Weekly backtest completed.\n\nHit Rate: {{ $json.report.overall_hit_rate }}%\nTotal Decisions: {{ $json.report.total_decisions }}\nLow Sample Warning: {{ $json.report.low_sample_warning }}\n\nView full report at {{ $env.DASHBOARD_URL }}/backtest/{{ $json.report.report_id }}"
+      },
+      "id": "email-notification",
+      "name": "Email Notification",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1
+    }
+  ],
+  "connections": {
+    "Scheduler (Monday 06:00)": {
+      "main": [
+        [
+          { "node": "Run Backtest", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Run Backtest": {
+      "main": [
+        [
+          { "node": "Store Report", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Store Report": {
+      "main": [
+        [
+          { "node": "Update Evidence Weights", "type": "main", "index": 0 },
+          { "node": "Publish Report Event", "type": "main", "index": 0 },
+          { "node": "Email Notification", "type": "main", "index": 0 }
+        ]
+      ]
+    }
+  }
+}

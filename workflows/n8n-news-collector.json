@@ -1,0 +1,106 @@
+{
+  "name": "News Collector Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 2
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Schedule Trigger (2min)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1
+    },
+    {
+      "parameters": {
+        "url": "https://www.bloomberght.com/rss",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "rss-bloomberg",
+      "name": "RSS Bloomberg HT",
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "url": "https://www.aa.com.tr/rss/rssNews?channel=economy",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "rss-aa",
+      "name": "RSS AA",
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "functionCode": "// Process news articles\nconst articles = $input.all();\nconst processed = [];\n\nfor (const item of articles) {\n  const article = item.json;\n  const contentHash = require('crypto').createHash('sha256')\n    .update(article.title + article.description)\n    .digest('hex');\n  \n  processed.push({\n    article_id: require('uuid').v4(),\n    source: 'BLOOMBERG_HT',\n    url: article.link,\n    title: article.title,\n    summary: article.description,\n    body: null,\n    author: article.creator,\n    published_at: article.pubDate,\n    ingested_at: new Date().toISOString(),\n    language: 'tr',\n    content_hash: contentHash\n  });\n}\n\nreturn processed.map(a => ({ json: a }));"
+      },
+      "id": "process",
+      "name": "Process Articles",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO news.articles (article_id, source, url, title, summary, body, author, published_at, ingested_at, language, content_hash) VALUES {{ $json.article_id }}, {{ $json.source }}, {{ $json.url }}, {{ $json.title }}, {{ $json.summary }}, {{ $json.body }}, {{ $json.author }}, {{ $json.published_at }}, {{ $json.ingested_at }}, {{ $json.language }}, {{ $json.content_hash }}"
+      },
+      "id": "postgres-insert",
+      "name": "PostgreSQL Insert",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1
+    },
+    {
+      "parameters": {
+        "channel": "raw.news.new",
+        "message": "={{ $json }}"
+      },
+      "id": "redis-publish",
+      "name": "Redis Publish",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1
+    }
+  ],
+  "connections": {
+    "Schedule Trigger (2min)": {
+      "main": [
+        [
+          { "node": "RSS Bloomberg HT", "type": "main", "index": 0 },
+          { "node": "RSS AA", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "RSS Bloomberg HT": {
+      "main": [
+        [
+          { "node": "Process Articles", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "RSS AA": {
+      "main": [
+        [
+          { "node": "Process Articles", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Process Articles": {
+      "main": [
+        [
+          { "node": "PostgreSQL Insert", "type": "main", "index": 0 },
+          { "node": "Redis Publish", "type": "main", "index": 0 }
+        ]
+      ]
+    }
+  }
+}

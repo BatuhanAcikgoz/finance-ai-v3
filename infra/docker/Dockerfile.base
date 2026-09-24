@@ -1,0 +1,98 @@
+# =============================================================================
+# Finance AI V3 - Base Image (multi-stage, copy-only pattern)
+# =============================================================================
+# Shared base for api-gateway and workers. Each service extends this with its
+# own thin Dockerfile that adds the package source and CMD.
+#
+# Pattern:
+#   1. Stage "deps": copy ONLY pyproject.toml + uv.lock and run `uv sync --frozen --no-dev`.
+#      Layer is cached; rebuilds only when deps change.
+#   2. Stage "runtime": copy the populated .venv across, then drop in app source.
+# =============================================================================
+
+# ---- Stage 1: dependency install ----
+FROM python:3.12-slim AS deps
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    UV_LINK_MODE=copy \
+    UV_PROJECT_ENVIRONMENT=/app/.venv
+
+# Install uv (pinned; latest stable at time of authoring)
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl ca-certificates \
+    && rm -rf /var/lib/apt/lists/* \
+    && curl -LsSf https://astral.sh/uv/install.sh | sh \
+    && mv /root/.local/bin/uv /usr/local/bin/uv \
+    && chmod +x /usr/local/bin/uv
+
+WORKDIR /app
+
+# Copy workspace manifests first for layer caching.
+# uv resolves the full workspace from the root pyproject.toml + uv.lock.
+COPY pyproject.toml uv.lock ./
+COPY apps/api-gateway/pyproject.toml apps/api-gateway/pyproject.toml
+COPY services/shared/pyproject.toml services/shared/pyproject.toml
+COPY services/kap_collector/pyproject.toml services/kap_collector/pyproject.toml
+COPY services/technical_analysis/pyproject.toml services/technical_analysis/pyproject.toml
+COPY services/decision_engine/pyproject.toml services/decision_engine/pyproject.toml
+COPY services/report_generator/pyproject.toml services/report_generator/pyproject.toml
+
+# Stub source trees so uv can resolve the workspace members.
+# Real source is copied in the runtime stage.
+RUN mkdir -p \
+        apps/api-gateway/src/api_gateway \
+        services/shared/src/shared \
+        services/kap_collector/src/kap_collector \
+        services/technical_analysis/src/technical_analysis \
+        services/decision_engine/src/decision_engine \
+        services/report_generator/src/report_generator \
+    && for pkg in apps/api-gateway/src/api_gateway \
+                  services/shared/src/shared \
+                  services/kap_collector/src/kap_collector \
+                  services/technical_analysis/src/technical_analysis \
+                  services/decision_engine/src/decision_engine \
+                  services/report_generator/src/report_generator; do \
+        touch "$pkg/__init__.py"; \
+    done
+
+RUN uv sync --frozen --no-dev
+
+# ---- Stage 2: runtime ----
+FROM python:3.12-slim AS runtime
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PATH="/app/.venv/bin:${PATH}" \
+    PYTHONPATH="/app/apps/api-gateway/src:/app/services/shared/src:/app/services/kap_collector/src:/app/services/technical_analysis/src:/app/services/decision_engine/src:/app/services/report_generator/src" \
+    UV_LINK_MODE=copy
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl ca-certificates tini \
+    && rm -rf /var/lib/apt/lists/* \
+    && groupadd --system --gid 1000 app \
+    && useradd --system --uid 1000 --gid app --create-home --shell /bin/bash app
+
+WORKDIR /app
+
+# Carry the prebuilt venv + workspace metadata from the deps stage.
+COPY --from=deps --chown=app:app /app/.venv /app/.venv
+COPY --from=deps --chown=app:app /app/pyproject.toml /app/pyproject.toml
+COPY --from=deps --chown=app:app /app/uv.lock /app/uv.lock
+
+# Drop in real source for the packages we ship in containers.
+COPY --chown=app:app apps/api-gateway/src/ /app/apps/api-gateway/src/
+COPY --chown=app:app services/shared/src/ /app/services/shared/src/
+COPY --chown=app:app services/kap_collector/src/ /app/services/kap_collector/src/
+COPY --chown=app:app services/technical_analysis/src/ /app/services/technical_analysis/src/
+COPY --chown=app:app services/decision_engine/src/ /app/services/decision_engine/src/
+COPY --chown=app:app services/report_generator/src/ /app/services/report_generator/src/
+
+USER app
+
+EXPOSE 8000
+
+# Per-service CMD/ENTRYPOINT is set in the inheriting Dockerfile.
+# This base image is intentionally not runnable on its own.

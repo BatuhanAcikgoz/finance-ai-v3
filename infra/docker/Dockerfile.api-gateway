@@ -1,0 +1,67 @@
+# =============================================================================
+# Finance AI V3 - API Gateway image
+# =============================================================================
+# Builds the FastAPI gateway on top of the uv-managed workspace. Multi-stage to
+# keep the runtime image small: deps layer is cached independently of source.
+# =============================================================================
+
+FROM python:3.12-slim AS deps
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    UV_LINK_MODE=copy \
+    UV_PROJECT_ENVIRONMENT=/app/.venv
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl ca-certificates \
+    && rm -rf /var/lib/apt/lists/* \
+    && curl -LsSf https://astral.sh/uv/install.sh | sh \
+    && mv /root/.local/bin/uv /usr/local/bin/uv \
+    && chmod +x /usr/local/bin/uv
+
+WORKDIR /app
+
+# Workspace manifests (cached layer)
+COPY pyproject.toml uv.lock ./
+COPY apps/ ./apps/
+COPY services/ ./services/
+
+# Stub the api-gateway src dir so the workspace member resolves (it's just an
+# __init__.py that hatchling needs to claim the package).
+RUN mkdir -p apps/api-gateway/src/api_gateway_pkg \
+    && touch apps/api-gateway/src/api_gateway_pkg/__init__.py
+
+RUN uv sync --frozen --no-dev
+
+# =============================================================================
+FROM python:3.12-slim AS runtime
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PATH="/app/.venv/bin:${PATH}" \
+    PYTHONPATH="/app/apps/api-gateway/src:/app/services/shared/src"
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl ca-certificates tini \
+    && rm -rf /var/lib/apt/lists/* \
+    && groupadd --system --gid 1000 app \
+    && useradd --system --uid 1000 --gid app --create-home --shell /bin/bash app
+
+WORKDIR /app
+
+COPY --from=deps --chown=app:app /app/.venv /app/.venv
+COPY --from=deps --chown=app:app /app/apps /app/apps
+COPY --from=deps --chown=app:app /app/services /app/services
+
+# Drop in real api-gateway source (overwrites the stub we created in deps stage).
+COPY --chown=app:app apps/api-gateway/src/ /app/apps/api-gateway/src/
+
+USER app
+
+EXPOSE 8000
+
+HEALTHCHECK --interval=15s --timeout=5s --start-period=20s --retries=5 \
+    CMD curl -fsS http://localhost:8000/health || exit 1
+
+ENTRYPOINT ["/usr/bin/tini", "--"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

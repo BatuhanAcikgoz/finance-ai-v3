@@ -1,0 +1,156 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://finance-ai-v3/schemas/market_data.json",
+  "title": "MarketData",
+  "description": "Market data: ticks, bars, indices, macro indicators",
+  "type": "object",
+  "oneOf": [
+    {"$ref": "#/$defs/Tick"},
+    {"$ref": "#/$defs/Bar"},
+    {"$ref": "#/$defs/IndexValue"},
+    {"$ref": "#/$defs/MacroIndicator"}
+  ],
+  "$defs": {
+    "Tick": {
+      "type": "object",
+      "description": "Real-time tick data from BIST exchange",
+      "properties": {
+        "ticker": {
+          "$ref": "common/ticker.json"
+        },
+        "price": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Last traded price in TRY"
+        },
+        "volume": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Volume traded at this tick"
+        },
+        "bid": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Best bid price"
+        },
+        "ask": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Best ask price"
+        },
+        "exchange_timestamp": {
+          "$ref": "common/timestamp.json"
+        },
+        "source": {
+          "type": "string",
+          "enum": ["BIST_API", "BIST_WS"],
+          "description": "Source of the tick data"
+        }
+      },
+      "required": ["ticker", "price", "volume", "exchange_timestamp", "source"],
+      "additionalProperties": false
+    },
+    "Bar": {
+      "type": "object",
+      "description": "OHLCV bar at various timeframes",
+      "properties": {
+        "ticker": {
+          "$ref": "common/ticker.json"
+        },
+        "timeframe": {
+          "type": "string",
+          "enum": ["1m", "5m", "15m", "60m", "1d"],
+          "description": "Bar timeframe"
+        },
+        "open": {
+          "type": "number",
+          "description": "Opening price"
+        },
+        "high": {
+          "type": "number",
+          "description": "Highest price in period"
+        },
+        "low": {
+          "type": "number",
+          "description": "Lowest price in period"
+        },
+        "close": {
+          "type": "number",
+          "description": "Closing price"
+        },
+        "volume": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Total volume in period"
+        },
+        "bar_start": {
+          "$ref": "common/timestamp.json"
+        },
+        "bar_end": {
+          "$ref": "common/timestamp.json"
+        }
+      },
+      "required": ["ticker", "timeframe", "open", "high", "low", "close", "volume", "bar_start", "bar_end"],
+      "additionalProperties": false
+    },
+    "IndexValue": {
+      "type": "object",
+      "description": "BIST index value (BIST-100, sector indices)",
+      "properties": {
+        "index_code": {
+          "type": "string",
+          "pattern": "^BIST-[A-Z]{3,}$|^XU100$",
+          "description": "Index code (e.g., XU100, BIST-FIN, BIST-IND)"
+        },
+        "value": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Index value"
+        },
+        "change_pct": {
+          "type": "number",
+          "description": "Percentage change from previous close"
+        },
+        "as_of": {
+          "$ref": "common/timestamp.json"
+        }
+      },
+      "required": ["index_code", "value", "as_of"],
+      "additionalProperties": false
+    },
+    "MacroIndicator": {
+      "type": "object",
+      "description": "Macroeconomic indicator from TCMB, TUIK, or BDDK",
+      "properties": {
+        "indicator_code": {
+          "type": "string",
+          "description": "Indicator identifier (e.g., CPI, PPI, POLICY_RATE)"
+        },
+        "source": {
+          "type": "string",
+          "enum": ["TCMB", "TUIKS", "BDDK"],
+          "description": "Data source institution"
+        },
+        "value": {
+          "type": "number",
+          "description": "Indicator value"
+        },
+        "unit": {
+          "type": "string",
+          "description": "Unit of measurement (e.g., %, TRY, USD)"
+        },
+        "release_date": {
+          "type": "string",
+          "format": "date",
+          "description": "Date of the indicator release"
+        },
+        "revised_from": {
+          "type": ["number", "null"],
+          "description": "Previous value if revised"
+        }
+      },
+      "required": ["indicator_code", "source", "value", "unit", "release_date"],
+      "additionalProperties": false
+    }
+  }
+}
