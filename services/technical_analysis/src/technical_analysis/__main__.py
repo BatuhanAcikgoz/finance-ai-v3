@@ -20,11 +20,19 @@ async def _run_once() -> None:
     svc = TechnicalAnalysisService()
     try:
         await svc.initialize()
-        await svc.run()  # type: ignore[attr-defined]
-        logger.info("technical_cycle_done")
-    except AttributeError:
-        # If the upstream scaffold doesn't expose run(), just log.
-        logger.warning("technical_service_no_run_method")
+        # Pull latest bars from postgres and process them.
+        rows = await svc._fetch_bars(limit=50)  # type: ignore[attr-defined]
+        if not rows:
+            logger.info("technical_no_bars_yet")
+            return
+        count = 0
+        for bar in rows:
+            try:
+                await svc.process_bar(bar)
+                count += 1
+            except Exception:  # noqa: BLE001
+                logger.exception("technical_bar_failed", ticker=bar.get("ticker"))
+        logger.info("technical_cycle_done", processed=count)
     except Exception:  # noqa: BLE001
         logger.exception("technical_cycle_failed")
     finally:

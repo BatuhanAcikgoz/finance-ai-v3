@@ -4,7 +4,18 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from middleware.logging import LoggingMiddleware
 from middleware.rate_limit import RateLimitMiddleware
-from routes import alerts, auth, decisions, health, market
+from routes import (
+    agents,
+    alerts,
+    auth,
+    backtest,
+    decisions,
+    events,
+    health,
+    market,
+    portfolio,
+    settings,
+)
 
 # Import-safe infra helpers — they no-op cleanly when DB/Redis are unreachable.
 import db
@@ -64,6 +75,11 @@ app.include_router(auth.router, prefix="/v1/auth", tags=["Auth"])
 app.include_router(market.router, prefix="/v1/market", tags=["Market"])
 app.include_router(decisions.router, prefix="/v1/decisions", tags=["Decisions"])
 app.include_router(alerts.router, prefix="/v1/alerts", tags=["Alerts"])
+app.include_router(portfolio.router, prefix="/v1/portfolio", tags=["Portfolio"])
+app.include_router(agents.router, prefix="/v1/agents", tags=["Agents"])
+app.include_router(backtest.router, prefix="/v1/backtest", tags=["Backtest"])
+app.include_router(settings.router, prefix="/v1/settings", tags=["Settings"])
+app.include_router(events.router, prefix="/v1/events", tags=["Events"])
 
 
 @app.get("/")

@@ -6,750 +6,37 @@
   <meta name="description" content="Finance AI V3 — Turkish capital markets autonomous research dashboard." />
   <title>Finance AI V3 — Dashboard</title>
   <link rel="icon" type="image/svg+xml" href="favicon.svg" />
-  <style>
-    /* ===========================================================
-     * Hermes-aligned palette — light + dark via prefers-color-scheme
-     * Token names mirror the spec: --foreground, --accent,
-     * --muted-foreground, --border, --card (+ extras for surfaces).
-     * =========================================================== */
-    :root {
-      color-scheme: light dark;
-      --bg:               #ffffff;
-      --foreground:       #0f172a;
-      --card:             #f8fafc;
-      --muted:            #f1f5f9;
-      --border:           #e2e8f0;
-      --accent:           #2563eb;   /* primary blue-600 */
-      --accent-fg:        #ffffff;
-      --muted-foreground: #64748b;
-      --bullish:          #16a34a;   /* green-600 */
-      --bearish:          #dc2626;   /* red-600 */
-      --warn:             #f59e0b;
-      --link:             #2563eb;
-      --code-bg:          #f1f5f9;
-      --shadow:           0 1px 2px rgba(15, 23, 42, 0.06);
-      --radius:           10px;
-      --gap:              16px;
-      --max-width:        1280px;
-    }
-
-    @media (prefers-color-scheme: dark) {
-      :root {
-        --bg:               #0f172a;
-        --foreground:       #e2e8f0;
-        --card:             #111c33;
-        --muted:            #1e293b;
-        --border:           #1f2a44;
-        --accent:           #60a5fa;
-        --accent-fg:        #0f172a;
-        --muted-foreground: #94a3b8;
-        --bullish:          #4ade80;
-        --bearish:          #f87171;
-        --warn:             #fbbf24;
-        --link:             #93c5fd;
-        --code-bg:          #0b1426;
-        --shadow:           0 1px 2px rgba(0, 0, 0, 0.4);
-      }
-    }
-
-    * { box-sizing: border-box; }
-
-    html, body {
-      margin: 0;
-      padding: 0;
-      background: var(--bg);
-      color: var(--foreground);
-      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
-                   "Helvetica Neue", Arial, "Inter", sans-serif;
-      font-size: 14px;
-      line-height: 1.5;
-      -webkit-font-smoothing: antialiased;
-    }
-
-    a { color: var(--link); text-decoration: none; }
-    a:hover { text-decoration: underline; }
-
-    .mono {
-      font-family: ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo,
-                   Consolas, "Liberation Mono", monospace;
-      font-variant-numeric: tabular-nums;
-    }
-
-    /* ===== Layout ===== */
-    .app {
-      min-height: 100vh;
-      display: grid;
-      grid-template-rows: auto 1fr auto;
-    }
-
-    .container {
-      width: 100%;
-      max-width: var(--max-width);
-      margin: 0 auto;
-      padding: 0 20px;
-    }
-
-    /* ===== Header ===== */
-    header.app-header {
-      background: var(--card);
-      border-bottom: 1px solid var(--border);
-      padding: 14px 0;
-      position: sticky;
-      top: 0;
-      z-index: 10;
-      backdrop-filter: saturate(180%) blur(8px);
-    }
-    .header-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 16px;
-      flex-wrap: wrap;
-    }
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-    .brand-logo {
-      width: 32px;
-      height: 32px;
-      border-radius: 8px;
-      background: linear-gradient(135deg, var(--accent), var(--bullish));
-      display: grid;
-      place-items: center;
-      color: var(--accent-fg);
-      flex-shrink: 0;
-    }
-    .brand h1 {
-      margin: 0;
-      font-size: 17px;
-      font-weight: 700;
-      letter-spacing: -0.01em;
-      color: var(--foreground);
-    }
-    .brand .subtitle {
-      margin: 0;
-      font-size: 11px;
-      color: var(--muted-foreground);
-      letter-spacing: 0.02em;
-    }
-    .nav {
-      display: flex;
-      gap: 4px;
-    }
-    .nav a {
-      padding: 6px 12px;
-      border-radius: 6px;
-      color: var(--muted-foreground);
-      font-size: 13px;
-      font-weight: 500;
-    }
-    .nav a:hover, .nav a.is-active {
-      background: var(--muted);
-      color: var(--foreground);
-      text-decoration: none;
-    }
-    .header-right {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-    }
-    .user-chip {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 4px 10px 4px 4px;
-      border-radius: 999px;
-      background: var(--muted);
-      border: 1px solid var(--border);
-      font-size: 12px;
-      color: var(--muted-foreground);
-    }
-    .user-chip .avatar {
-      width: 24px; height: 24px;
-      border-radius: 50%;
-      background: var(--accent);
-      color: var(--accent-fg);
-      display: grid; place-items: center;
-      font-weight: 700; font-size: 11px;
-    }
-    .last-updated {
-      font-size: 11px;
-      color: var(--muted-foreground);
-      font-variant-numeric: tabular-nums;
-    }
-
-    /* ===== Health pill ===== */
-    #health-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 5px 10px;
-      border-radius: 999px;
-      background: var(--card);
-      border: 1px solid var(--border);
-      font-size: 12px;
-      font-weight: 600;
-      color: var(--muted-foreground);
-      white-space: nowrap;
-    }
-    #health-badge .dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: var(--muted-foreground);
-      flex-shrink: 0;
-      box-shadow: 0 0 0 0 transparent;
-      transition: box-shadow 0.2s;
-    }
-    #health-badge.online   .dot { background: var(--bullish); box-shadow: 0 0 0 3px rgba(22,163,74,0.15); }
-    #health-badge.online   { color: var(--bullish); }
-    #health-badge.degraded .dot { background: var(--warn);    box-shadow: 0 0 0 3px rgba(245,158,11,0.15); }
-    #health-badge.degraded { color: var(--warn); }
-    #health-badge.offline  .dot { background: var(--bearish); box-shadow: 0 0 0 3px rgba(220,38,38,0.15); }
-    #health-badge.offline  { color: var(--bearish); }
-
-    /* ===== Main grid ===== */
-    main.app-main {
-      padding: 20px 0 32px;
-    }
-    .grid {
-      display: grid;
-      gap: var(--gap);
-      grid-template-columns: repeat(12, 1fr);
-    }
-    .col-12 { grid-column: span 12; }
-    .col-8  { grid-column: span 8; }
-    .col-6  { grid-column: span 6; }
-    .col-4  { grid-column: span 4; }
-    .col-3  { grid-column: span 3; }
-
-    @media (max-width: 1024px) {
-      .col-8, .col-6, .col-4, .col-3 { grid-column: span 12; }
-    }
-
-    /* ===== Card ===== */
-    .card {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 16px;
-      box-shadow: var(--shadow);
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      min-width: 0;
-    }
-    .card-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-    }
-    .card-header h2 {
-      margin: 0;
-      font-size: 12px;
-      font-weight: 700;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-      color: var(--muted-foreground);
-    }
-    .card-header .link {
-      font-size: 12px;
-      color: var(--link);
-    }
-    .card-body {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      min-width: 0;
-    }
-
-    /* ===== KPI ===== */
-    .kpi {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 14px 16px;
-      box-shadow: var(--shadow);
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      position: relative;
-      overflow: hidden;
-      min-width: 0;
-    }
-    .kpi .kpi-icon {
-      position: absolute;
-      top: 14px;
-      right: 14px;
-      color: var(--muted-foreground);
-      opacity: 0.6;
-    }
-    .kpi .label {
-      font-size: 11px;
-      font-weight: 600;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-      color: var(--muted-foreground);
-    }
-    .kpi .value {
-      font-size: 22px;
-      font-weight: 700;
-      letter-spacing: -0.01em;
-      font-variant-numeric: tabular-nums;
-      color: var(--foreground);
-    }
-    .kpi .value.is-empty { color: var(--muted-foreground); font-weight: 500; }
-    .kpi .sub {
-      font-size: 12px;
-      color: var(--muted-foreground);
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .delta-pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 2px;
-      padding: 1px 6px;
-      border-radius: 4px;
-      font-size: 11px;
-      font-weight: 600;
-      font-variant-numeric: tabular-nums;
-    }
-    .delta-pill.pos { color: var(--bullish); background: color-mix(in srgb, var(--bullish) 12%, transparent); }
-    .delta-pill.neg { color: var(--bearish); background: color-mix(in srgb, var(--bearish) 12%, transparent); }
-    .delta-pill.neutral { color: var(--muted-foreground); background: var(--muted); }
-
-    /* ===== Decisions list ===== */
-    ul.decisions {
-      list-style: none;
-      margin: 0;
-      padding: 0;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-
-    /* Latest-decision highlight (added with the decisions.html page). */
-    .latest-decision {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      padding: 12px 14px;
-      margin-bottom: 10px;
-      border-radius: 8px;
-      border: 1px solid var(--border);
-      background: linear-gradient(135deg,
-        color-mix(in srgb, var(--accent) 10%, transparent),
-        color-mix(in srgb, var(--accent) 4%, transparent));
-      border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
-    }
-    .latest-decision.empty {
-      background: var(--muted);
-      border-style: dashed;
-    }
-    .latest-decision .latest-label {
-      font-size: 10px;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: var(--muted-foreground);
-      font-weight: 700;
-    }
-    .latest-decision .latest-body {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
-    .latest-decision .latest-symbol {
-      font-size: 18px;
-      font-weight: 700;
-    }
-    .latest-decision .latest-reason {
-      font-size: 12px;
-      color: var(--muted-foreground);
-      flex: 1 1 200px;
-      min-width: 0;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-    .latest-decision .latest-meta {
-      font-size: 11px;
-      color: var(--muted-foreground);
-    }
-    .latest-decision .latest-link {
-      align-self: flex-end;
-      font-size: 11px;
-      color: var(--link);
-    }
-    ul.decisions li.decision {
-      display: grid;
-      grid-template-columns: auto 1fr auto;
-      gap: 10px;
-      align-items: center;
-      padding: 10px 12px;
-      background: var(--muted);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-    }
-    .decision-symbol {
-      font-weight: 700;
-      font-size: 13px;
-      letter-spacing: -0.01em;
-    }
-    .decision-reason {
-      font-size: 12px;
-      color: var(--muted-foreground);
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-    .decision-meta {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 11px;
-      color: var(--muted-foreground);
-    }
-    .tag {
-      display: inline-flex;
-      align-items: center;
-      padding: 2px 8px;
-      border-radius: 4px;
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-      border: 1px solid transparent;
-    }
-    .tag.buy  { color: var(--bullish); background: color-mix(in srgb, var(--bullish) 12%, transparent); border-color: color-mix(in srgb, var(--bullish) 30%, transparent); }
-    .tag.sell { color: var(--bearish); background: color-mix(in srgb, var(--bearish) 12%, transparent); border-color: color-mix(in srgb, var(--bearish) 30%, transparent); }
-    .tag.hold { color: var(--warn);    background: color-mix(in srgb, var(--warn)    12%, transparent); border-color: color-mix(in srgb, var(--warn)    30%, transparent); }
-    .tag.reduce { color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); border-color: color-mix(in srgb, var(--accent) 30%, transparent); }
-    .tag.idx  { color: var(--muted-foreground); background: var(--muted); border-color: var(--border); }
-
-    /* ===== Portfolio table (top 5 holdings) ===== */
-    table.portfolio {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 13px;
-    }
-    table.portfolio th, table.portfolio td {
-      text-align: left;
-      padding: 8px 6px;
-      border-bottom: 1px solid var(--border);
-    }
-    table.portfolio th {
-      font-weight: 600;
-      color: var(--muted-foreground);
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-    }
-    table.portfolio td.num, table.portfolio th.num { text-align: right; font-variant-numeric: tabular-nums; }
-    .weight-bar {
-      width: 80px;
-      height: 6px;
-      background: var(--muted);
-      border-radius: 3px;
-      position: relative;
-      overflow: hidden;
-      display: inline-block;
-      vertical-align: middle;
-      margin-right: 6px;
-    }
-    .weight-bar > span {
-      display: block;
-      height: 100%;
-      background: var(--accent);
-      border-radius: 3px;
-    }
-    .skeleton-note {
-      font-size: 11px;
-      color: var(--muted-foreground);
-      padding: 8px 10px;
-      background: var(--muted);
-      border: 1px dashed var(--border);
-      border-radius: 6px;
-    }
-
-    /* ===== Alerts inbox ===== */
-    .alerts {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-    .alert {
-      display: grid;
-      grid-template-columns: auto 1fr auto;
-      gap: 10px;
-      align-items: center;
-      padding: 10px 12px;
-      background: var(--muted);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      border-left: 3px solid var(--muted-foreground);
-    }
-    .alert.sev-info     { border-left-color: var(--accent); }
-    .alert.sev-warn     { border-left-color: var(--warn); }
-    .alert.sev-critical { border-left-color: var(--bearish); }
-    .alert-title {
-      font-size: 13px;
-      font-weight: 600;
-    }
-    .alert-meta {
-      font-size: 11px;
-      color: var(--muted-foreground);
-    }
-
-    /* ===== Market snapshot ===== */
-    .market-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 12px;
-    }
-    @media (max-width: 720px) {
-      .market-grid { grid-template-columns: 1fr; }
-    }
-    .market-tile {
-      padding: 12px;
-      background: var(--muted);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
-    .market-tile .label {
-      font-size: 11px;
-      color: var(--muted-foreground);
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-    }
-    .market-tile .val {
-      font-size: 16px;
-      font-weight: 700;
-      font-variant-numeric: tabular-nums;
-    }
-    .market-tile .chg {
-      font-size: 12px;
-      font-variant-numeric: tabular-nums;
-    }
-    .movers {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      margin-top: 4px;
-    }
-    .mover-row {
-      display: grid;
-      grid-template-columns: 1fr auto auto;
-      gap: 8px;
-      align-items: center;
-      padding: 6px 10px;
-      background: var(--muted);
-      border-radius: 6px;
-      font-size: 12px;
-    }
-
-    /* ===== Symbols table ===== */
-    .table-wrap { overflow-x: auto; }
-    table.symbols {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 13px;
-      font-variant-numeric: tabular-nums;
-    }
-    table.symbols th, table.symbols td {
-      text-align: left;
-      padding: 8px 10px;
-      border-bottom: 1px solid var(--border);
-      white-space: nowrap;
-    }
-    table.symbols th {
-      font-weight: 600;
-      color: var(--muted-foreground);
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      position: sticky;
-      top: 0;
-      background: var(--card);
-    }
-    table.symbols tbody tr {
-      cursor: pointer;
-      transition: background-color 0.1s;
-    }
-    table.symbols tbody tr:hover,
-    table.symbols tbody tr.is-active {
-      background: color-mix(in srgb, var(--accent) 8%, transparent);
-    }
-    table.symbols tbody tr.is-active {
-      box-shadow: inset 3px 0 0 var(--accent);
-    }
-    table.symbols td.num { text-align: right; font-variant-numeric: tabular-nums; }
-    table.symbols td .spark-mini {
-      display: inline-block;
-      vertical-align: middle;
-      width: 80px;
-      height: 22px;
-    }
-    .pos { color: var(--bullish); }
-    .neg { color: var(--bearish); }
-    .neutral { color: var(--muted-foreground); }
-
-    /* ===== Sparkline / chart panel ===== */
-    .chart-panel { display: flex; flex-direction: column; gap: 12px; }
-    .chart-header {
-      display: flex;
-      align-items: baseline;
-      justify-content: space-between;
-      gap: 12px;
-      flex-wrap: wrap;
-    }
-    .chart-header .symbol-name {
-      font-size: 18px;
-      font-weight: 700;
-    }
-    .chart-header .symbol-price {
-      font-size: 18px;
-      font-weight: 600;
-      font-variant-numeric: tabular-nums;
-    }
-    svg.sparkline {
-      width: 100%;
-      height: 160px;
-      display: block;
-    }
-    svg.sparkline .axis-line { stroke: var(--border); stroke-width: 1; }
-    svg.sparkline .grid-line { stroke: var(--border); stroke-width: 0.5; stroke-dasharray: 2 3; opacity: 0.5; }
-    svg.sparkline .area-bull { fill: color-mix(in srgb, var(--bullish) 14%, transparent); }
-    svg.sparkline .area-bear { fill: color-mix(in srgb, var(--bearish) 14%, transparent); }
-    svg.sparkline .line-bull { fill: none; stroke: var(--bullish); stroke-width: 1.75; stroke-linejoin: round; stroke-linecap: round; }
-    svg.sparkline .line-bear { fill: none; stroke: var(--bearish); stroke-width: 1.75; stroke-linejoin: round; stroke-linecap: round; }
-    svg.sparkline .dot-last-bull { fill: var(--bullish); stroke: var(--card); stroke-width: 2; }
-    svg.sparkline .dot-last-bear { fill: var(--bearish); stroke: var(--card); stroke-width: 2; }
-    svg.sparkline .baseline     { stroke: var(--border); stroke-width: 0.75; stroke-dasharray: 3 3; }
-
-    .chart-empty {
-      padding: 24px;
-      text-align: center;
-      color: var(--muted-foreground);
-      font-size: 13px;
-      border: 1px dashed var(--border);
-      border-radius: 8px;
-    }
-
-    /* ===== Empty / error / loading ===== */
-    .empty-state, .error-state {
-      padding: 16px;
-      color: var(--muted-foreground);
-      font-size: 13px;
-      text-align: center;
-    }
-    .error-state {
-      color: var(--bearish);
-      background: color-mix(in srgb, var(--bearish) 8%, transparent);
-      border: 1px solid color-mix(in srgb, var(--bearish) 25%, transparent);
-      border-radius: 6px;
-      text-align: left;
-    }
-
-    /* ===== Footer ===== */
-    footer.app-footer {
-      padding: 16px 0;
-      border-top: 1px solid var(--border);
-      background: var(--card);
-      color: var(--muted-foreground);
-      font-size: 11px;
-    }
-    footer .footer-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 12px;
-      flex-wrap: wrap;
-    }
-    .refresh-indicator {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .refresh-indicator .spinner {
-      width: 10px;
-      height: 10px;
-      border: 2px solid var(--border);
-      border-top-color: var(--accent);
-      border-radius: 50%;
-      display: none;
-      animation: spin 0.8s linear infinite;
-    }
-    .refresh-indicator.is-loading .spinner { display: inline-block; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    /* ===== Mobile ===== */
-    @media (max-width: 720px) {
-      .container { padding: 0 12px; }
-      .header-row { gap: 8px; }
-      .nav { order: 3; width: 100%; overflow-x: auto; }
-      .brand h1 { font-size: 15px; }
-      .last-updated { display: none; }
-      .kpi .value { font-size: 18px; }
-      .card { padding: 12px; }
-      main.app-main { padding: 12px 0 24px; }
-      svg.sparkline { height: 110px; }
-      .chart-header .symbol-name,
-      .chart-header .symbol-price { font-size: 15px; }
-      table.symbols th, table.symbols td { padding: 6px 8px; font-size: 12px; }
-      ul.decisions li.decision { grid-template-columns: 1fr; gap: 4px; }
-      ul.decisions li.decision .decision-meta { justify-content: flex-start; }
-    }
-  </style>
+  <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
+  <!-- Animated Apple gradient mesh — fixed, behind everything, non-interactive -->
+  <div class="bg-mesh" aria-hidden="true"></div>
+
   <div class="app">
 
-    <!-- ===== Header ===== -->
-    <header class="app-header">
-      <div class="container header-row">
-        <div class="brand">
-          <div class="brand-logo" aria-hidden="true">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M3 17l6-6 4 4 8-8"/>
-              <path d="M14 7h7v7"/>
-            </svg>
-          </div>
-          <div>
-            <h1>Finance AI V3</h1>
-            <p class="subtitle">Türk sermaye piyasaları — otonom araştırma</p>
-          </div>
-        </div>
-
-        <nav class="nav" aria-label="primary">
-          <a href="index.html" class="is-active" aria-current="page">Genel Bakış</a>
-          <a href="decisions.html">Kararlar</a>
-          <a href="#" aria-disabled="true" class="nav-soon" title="Yakında / Coming soon">Portföy</a>
-          <a href="#" aria-disabled="true" class="nav-soon" title="Yakında / Coming soon">Ajanlar</a>
-          <a href="#" aria-disabled="true" class="nav-soon" title="Yakında / Coming soon">Backtest</a>
-        </nav>
-
-        <div class="header-right">
-          <span class="last-updated" id="last-updated" aria-live="polite"></span>
-          <span id="health-badge" role="status" aria-live="polite" aria-label="Sistem durumu">
-            <span class="dot" aria-hidden="true"></span>
-            <span class="label">denetleniyor…</span>
-          </span>
-          <span class="user-chip">
-            <span class="avatar" aria-hidden="true">A</span>
-            <span>analist</span>
-          </span>
-        </div>
+    <!-- ===== Shared top navigation (Liquid Glass) ===== -->
+    <nav class="app-nav" aria-label="primary">
+      <a class="nav-brand" href="index.html">
+        <span class="nav-brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/></svg>
+        </span>
+        Finance AI V3
+      </a>
+      <div class="nav-links">
+        <a href="index.html" class="is-active">Genel Bakış / Overview</a>
+        <a href="decisions.html">Kararlar / Decisions</a>
+        <a href="portfolio.html">Portföy / Portfolio</a>
+        <a href="alerts.html">Uyarılar / Alerts</a>
+        <a href="system-health.html">Sistem Sağlığı / System Health</a>
       </div>
-    </header>
+      <div class="nav-right">
+        <span class="last-updated" id="last-updated" aria-live="polite"></span>
+        <span id="health-badge" role="status" aria-live="polite" aria-label="Sistem durumu">
+          <span class="dot" aria-hidden="true"></span>
+          <span class="label">denetleniyor…</span>
+        </span>
+      </div>
+    </nav>
 
     <!-- ===== Main ===== -->
     <main class="app-main">
@@ -757,44 +44,44 @@
 
         <!-- KPI strip -->
         <div class="col-12" style="display:grid;gap:var(--gap);grid-template-columns:repeat(4,minmax(0,1fr));">
-          <div class="kpi" id="kpi-portfolio" aria-labelledby="kpi-portfolio-label">
+          <div class="kpi glass" id="kpi-portfolio" aria-labelledby="kpi-portfolio-label">
             <span class="kpi-icon" aria-hidden="true">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="M3.27 6.96L12 12.01l8.73-5.05"/><path d="M12 22.08V12"/></svg>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="M3.27 6.96L12 12.01l8.73-5.05"/><path d="M12 22.08V12"/></svg>
             </span>
-            <span class="label" id="kpi-portfolio-label">Portföy Değeri</span>
+            <span class="label" id="kpi-portfolio-label">Portföy Değeri / Portfolio</span>
             <span class="value mono" id="kpi-portfolio-value">—</span>
-            <span class="sub" id="kpi-portfolio-sub">canlı bağlantı bekleniyor</span>
+            <span class="sub" id="kpi-portfolio-sub">canlı bağlantı bekleniyor / awaiting live feed</span>
           </div>
-          <div class="kpi" id="kpi-pnl" aria-labelledby="kpi-pnl-label">
+          <div class="kpi glass" id="kpi-pnl" aria-labelledby="kpi-pnl-label">
             <span class="kpi-icon" aria-hidden="true">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg>
             </span>
-            <span class="label" id="kpi-pnl-label">Günlük Kâr / Zarar</span>
+            <span class="label" id="kpi-pnl-label">Günlük Kâr / Zarar · Daily P&amp;L</span>
             <span class="value mono" id="kpi-pnl-value">—</span>
-            <span class="sub" id="kpi-pnl-sub">endpoint bağlanıyor</span>
+            <span class="sub" id="kpi-pnl-sub">endpoint bağlanıyor / connecting…</span>
           </div>
-          <div class="kpi" id="kpi-var" aria-labelledby="kpi-var-label">
+          <div class="kpi glass" id="kpi-var" aria-labelledby="kpi-var-label">
             <span class="kpi-icon" aria-hidden="true">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
             </span>
             <span class="label" id="kpi-var-label">VaR (1g, %95)</span>
             <span class="value mono" id="kpi-var-value">—</span>
-            <span class="sub" id="kpi-var-sub">endpoint bağlanıyor</span>
+            <span class="sub" id="kpi-var-sub">endpoint bağlanıyor / connecting…</span>
           </div>
-          <div class="kpi" id="kpi-decisions" aria-labelledby="kpi-decisions-label">
+          <div class="kpi glass" id="kpi-decisions" aria-labelledby="kpi-decisions-label">
             <span class="kpi-icon" aria-hidden="true">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
             </span>
-            <span class="label" id="kpi-decisions-label">Bugünkü Kararlar</span>
+            <span class="label" id="kpi-decisions-label">Bugünkü Kararlar / Today's</span>
             <span class="value mono" id="kpi-decisions-value">—</span>
-            <span class="sub" id="kpi-decisions-sub">endpoint bağlanıyor</span>
+            <span class="sub" id="kpi-decisions-sub">endpoint bağlanıyor / connecting…</span>
           </div>
         </div>
 
         <!-- Today's Decisions (top 5) -->
-        <section class="card col-8" aria-labelledby="decisions-heading">
+        <section class="card glass col-8" aria-labelledby="decisions-heading">
           <div class="card-header">
-            <h2 id="decisions-heading">Bugünün Kararları · ilk 5</h2>
+            <h2 id="decisions-heading">Bugünün Kararları · ilk 5 / Today's Top 5</h2>
             <a href="decisions.html" class="link" id="decisions-count">— adet</a>
           </div>
           <div class="card-body">
@@ -803,29 +90,29 @@
             <div id="latest-decision" class="latest-decision empty" hidden>
               <span class="latest-label">Son karar / Latest</span>
               <div class="latest-body"></div>
-              <a class="latest-link" href="decisions.html">Tüm kararlar →</a>
+              <a class="latest-link" href="decisions.html">Tüm kararlar → / All decisions</a>
             </div>
             <ul class="decisions" id="decisions-list" aria-live="polite">
-              <li class="empty-state">Yükleniyor…</li>
+              <li class="empty-state">Yükleniyor… / Loading…</li>
             </ul>
           </div>
         </section>
 
         <!-- Alerts Inbox (last 3) -->
-        <section class="card col-4" aria-labelledby="alerts-heading">
+        <section class="card glass col-4" aria-labelledby="alerts-heading">
           <div class="card-header">
-            <h2 id="alerts-heading">Uyarı Kutusu</h2>
-            <a href="#" class="link">tümü</a>
+            <h2 id="alerts-heading">Uyarı Kutusu / Alerts</h2>
+            <a href="alerts.html" class="link">tümü / all</a>
           </div>
           <div class="card-body alerts" id="alerts-list">
-            <div class="empty-state">Henüz uyarı yok.</div>
+            <div class="empty-state">Henüz uyarı yok / No alerts yet.</div>
           </div>
         </section>
 
         <!-- Market snapshot (BIST-100, USD/TRY, top movers) -->
-        <section class="card col-4" aria-labelledby="market-heading">
+        <section class="card glass col-4" aria-labelledby="market-heading">
           <div class="card-header">
-            <h2 id="market-heading">Piyasa Özeti</h2>
+            <h2 id="market-heading">Piyasa Özeti / Market</h2>
           </div>
           <div class="card-body">
             <div class="market-grid">
@@ -846,27 +133,28 @@
               </div>
             </div>
             <div class="movers" id="movers-list">
-              <div class="empty-state" style="padding:8px;">Hareketliler yükleniyor…</div>
+              <div class="empty-state" style="padding:8px;">Hareketliler yükleniyor… / Loading movers…</div>
             </div>
           </div>
         </section>
 
         <!-- Portfolio snapshot top 5 -->
-        <section class="card col-4" aria-labelledby="portfolio-heading">
+        <section class="card glass col-4" aria-labelledby="portfolio-heading">
           <div class="card-header">
-            <h2 id="portfolio-heading">Portföy Özeti · ilk 5</h2>
-            <a href="#" class="link">tamamı</a>
+            <h2 id="portfolio-heading">Portföy Özeti · ilk 5 / Portfolio Snapshot</h2>
+            <a href="portfolio.html" class="link">tamamı / full</a>
           </div>
           <div class="card-body">
             <div class="skeleton-note" id="portfolio-note">
               Portföy snapshot endpoint'i hazır olduğunda burada en ağır 5 pozisyon görünecek.
+              / Top 5 weighted positions will appear here when the snapshot endpoint is live.
             </div>
             <table class="portfolio" id="portfolio-table" hidden>
               <thead>
                 <tr>
-                  <th>Sembol</th>
-                  <th class="num">Ağırlık</th>
-                  <th class="num">Hedef</th>
+                  <th>Sembol / Ticker</th>
+                  <th class="num">Ağırlık / Weight</th>
+                  <th class="num">Hedef / Target</th>
                 </tr>
               </thead>
               <tbody id="portfolio-body"></tbody>
@@ -875,9 +163,9 @@
         </section>
 
         <!-- Symbols table -->
-        <section class="card col-4" aria-labelledby="symbols-heading">
+        <section class="card glass col-4" aria-labelledby="symbols-heading">
           <div class="card-header">
-            <h2 id="symbols-heading">Semboller</h2>
+            <h2 id="symbols-heading">Semboller / Symbols</h2>
             <span class="link" id="symbols-count">— adet</span>
           </div>
           <div class="card-body">
@@ -885,16 +173,16 @@
               <table class="symbols" id="symbols-table">
                 <thead>
                   <tr>
-                    <th scope="col">Sembol</th>
-                    <th scope="col">Ad</th>
-                    <th scope="col" class="num">Son</th>
+                    <th scope="col">Sembol / Ticker</th>
+                    <th scope="col">Ad / Name</th>
+                    <th scope="col" class="num">Son / Last</th>
                     <th scope="col" class="num">Δ %</th>
-                    <th scope="col" class="num">Hac.</th>
+                    <th scope="col" class="num">Hac. / Vol</th>
                     <th scope="col">Trend</th>
                   </tr>
                 </thead>
                 <tbody id="symbols-body">
-                  <tr><td colspan="6" class="empty-state">Yükleniyor…</td></tr>
+                  <tr><td colspan="6" class="empty-state">Yükleniyor… / Loading…</td></tr>
                 </tbody>
               </table>
             </div>
@@ -902,18 +190,19 @@
         </section>
 
         <!-- Sparkline panel (50-bar chart) -->
-        <section class="card col-12 chart-panel" aria-labelledby="chart-heading">
+        <section class="card glass col-12 chart-panel" aria-labelledby="chart-heading">
           <div class="card-header">
-            <h2 id="chart-heading">OHLCV Grafik · 50 bar</h2>
+            <h2 id="chart-heading">OHLCV Grafik · 50 bar / Sparkline</h2>
             <span class="link" id="chart-meta">—</span>
           </div>
           <div class="chart-header">
-            <span class="symbol-name" id="chart-symbol">— Bir sembol seçin —</span>
+            <span class="symbol-name" id="chart-symbol">— Bir sembol seçin — / Pick a symbol —</span>
             <span class="symbol-price mono" id="chart-price"></span>
           </div>
           <div id="chart-body">
             <div class="chart-empty">
               Yukarıdaki sembol tablosundan bir satıra tıklayarak grafiği yükleyin.
+              / Click a row in the symbols table above to load the chart.
             </div>
           </div>
         </section>
@@ -925,7 +214,7 @@
       <div class="container footer-row">
         <span class="refresh-indicator" id="refresh-indicator" aria-live="polite">
           <span class="spinner" aria-hidden="true"></span>
-          <span class="text">15 saniyede bir otomatik yenileme</span>
+          <span class="text">15 saniyede bir otomatik yenileme / Auto-refresh every 15s</span>
         </span>
         <span>Finance AI V3 · v0.1 · <span id="last-updated-footer"></span></span>
       </div>

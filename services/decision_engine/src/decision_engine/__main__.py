@@ -20,10 +20,19 @@ async def _run_once() -> None:
     svc = DecisionEngineService()
     try:
         await svc.initialize()
-        await svc.run()  # type: ignore[attr-defined]
-        logger.info("decision_cycle_done")
-    except AttributeError:
-        logger.warning("decision_service_no_run_method")
+        # For each ticker with indicators in last 24h, make a decision.
+        # The service exposes make_decision(portfolio_id, ticker, ts) which
+        # pulls the latest evidence and persists to decision.decisions.
+        tickers = await svc._fetch_active_tickers()  # type: ignore[attr-defined]
+        if not tickers:
+            logger.info("decision_no_active_tickers")
+            return
+        for ticker in tickers:
+            try:
+                await svc.make_decision(portfolio_id=None, ticker=ticker)
+            except Exception:  # noqa: BLE001
+                logger.exception("decision_ticker_failed", ticker=ticker)
+        logger.info("decision_cycle_done", processed=len(tickers))
     except Exception:  # noqa: BLE001
         logger.exception("decision_cycle_failed")
     finally:

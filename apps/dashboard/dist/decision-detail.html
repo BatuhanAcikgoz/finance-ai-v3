@@ -6,410 +6,47 @@
   <meta name="description" content="Karar detayı / Decision detail — Finance AI V3 evidence trace." />
   <title>Karar Detayı / Decision Detail — Finance AI V3</title>
   <link rel="icon" type="image/svg+xml" href="favicon.svg" />
-  <style>
-    /* ===== Shared palette (decisions.html) ===== */
-    :root {
-      --bg:           #0b0d12;
-      --foreground:   #e6e8ee;
-      --muted:        #8a91a3;
-      --muted-foreground:#8a91a3;
-      --card:         #12151c;
-      --code-bg:      #0f1218;
-      --border:       #232733;
-      --accent:       #4ade80;
-      --accent-dim:   #22c55e;
-      --danger:       #ef4444;
-      --warn:         #f59e0b;
-      --link:         #60a5fa;
-      --bullish:      #4ade80;
-      --bearish:      #ef4444;
-      --radius:       10px;
-      --max-width:    960px;
-      --gap:          16px;
-    }
-
-    * { box-sizing: border-box; }
-
-    html, body {
-      margin: 0;
-      padding: 0;
-      background: var(--bg);
-      color: var(--foreground);
-      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
-                   "Helvetica Neue", Arial, sans-serif;
-      font-size: 15px;
-      line-height: 1.5;
-      -webkit-font-smoothing: antialiased;
-    }
-
-    a { color: var(--link); text-decoration: none; }
-    a:hover { text-decoration: underline; }
-
-    main {
-      max-width: var(--max-width);
-      margin: 0 auto;
-      padding: 24px 16px 48px;
-      display: flex;
-      flex-direction: column;
-      gap: var(--gap);
-    }
-
-    /* ===== Header ===== */
-    header.app-header {
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      gap: 12px;
-      padding-bottom: 16px;
-      border-bottom: 1px solid var(--border);
-      flex-wrap: wrap;
-    }
-    .brand h1 {
-      margin: 0;
-      font-size: 22px;
-      font-weight: 700;
-      letter-spacing: -0.01em;
-    }
-    .brand .subtitle {
-      margin: 2px 0 0;
-      font-size: 12px;
-      color: var(--muted);
-    }
-    .brand .back-link {
-      display: inline-block;
-      margin-bottom: 4px;
-      font-size: 12px;
-      color: var(--muted);
-    }
-    .brand .back-link:hover { color: var(--link); }
-
-    /* ===== Cards ===== */
-    .card {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 16px;
-    }
-    .card h2 {
-      margin: 0 0 12px;
-      font-size: 14px;
-      font-weight: 600;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-      color: var(--muted);
-    }
-    .card .subtle {
-      font-size: 11px;
-      color: var(--muted);
-      text-transform: none;
-      letter-spacing: 0;
-      font-weight: 400;
-    }
-
-    /* ===== Decision header card ===== */
-    .detail-header {
-      display: grid;
-      grid-template-columns: 1fr auto;
-      gap: 16px;
-      align-items: center;
-    }
-    .detail-header .id-block {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-      min-width: 0;
-    }
-    .detail-header .id-row {
-      display: flex;
-      align-items: baseline;
-      gap: 12px;
-      flex-wrap: wrap;
-    }
-    .detail-header .ticker {
-      font-size: 22px;
-      font-weight: 700;
-    }
-    .detail-header .id {
-      font-family: ui-monospace, "SF Mono", Menlo, monospace;
-      font-size: 12px;
-      color: var(--muted);
-    }
-    .detail-header .effective {
-      font-size: 12px;
-      color: var(--muted);
-    }
-
-    /* ===== Badges ===== */
-    .badge {
-      display: inline-block;
-      padding: 4px 10px;
-      border-radius: 999px;
-      font-size: 12px;
-      font-weight: 700;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-      background: var(--code-bg);
-      border: 1px solid var(--border);
-      color: var(--muted);
-      white-space: nowrap;
-    }
-    .badge.action-buy        { color: var(--accent); border-color: var(--accent-dim); }
-    .badge.action-sell       { color: var(--danger); border-color: var(--danger); }
-    .badge.action-hold       { color: var(--warn);   border-color: var(--warn); }
-    .badge.action-reduce     { color: var(--warn);   border-color: var(--warn); }
-    .badge.action-insufficient{ color: var(--muted); border-color: var(--muted); }
-
-    .badge.compliance-approved { color: var(--accent); border-color: var(--accent-dim); }
-    .badge.compliance-pending  { color: var(--warn);   border-color: var(--warn); }
-    .badge.compliance-blocked  { color: var(--danger); border-color: var(--danger); }
-    .badge.compliance-review   { color: var(--link);   border-color: var(--link); }
-    .badge.compliance-flagged  { color: var(--danger); border-color: var(--danger); }
-    .badge.compliance-unknown  { color: var(--muted);  border-color: var(--muted); }
-
-    /* ===== Confidence meter (vertical, inline) ===== */
-    .confidence-meter {
-      display: inline-flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      width: 40px;
-      height: 64px;
-      position: relative;
-      background: var(--code-bg);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      overflow: hidden;
-    }
-    .confidence-meter .bar {
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      background: var(--confidence-color, var(--accent));
-      transition: height 0.3s ease;
-    }
-    .confidence-meter .value {
-      position: relative;
-      font-size: 12px;
-      font-weight: 700;
-      color: var(--foreground);
-      text-shadow: 0 0 2px rgba(0,0,0,0.6);
-      pointer-events: none;
-    }
-
-    /* ===== Evidence cards ===== */
-    .evidence-stack { display: flex; flex-direction: column; gap: 10px; }
-    .evidence-card {
-      background: var(--code-bg);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      overflow: hidden;
-    }
-    .evidence-card > details > summary {
-      list-style: none;
-      cursor: pointer;
-      padding: 12px 14px;
-      display: grid;
-      grid-template-columns: 1fr auto auto auto auto;
-      align-items: center;
-      gap: 10px;
-    }
-    .evidence-card > details > summary::-webkit-details-marker { display: none; }
-    .evidence-card > details > summary::before {
-      content: "▸";
-      color: var(--muted);
-      margin-right: 4px;
-      transition: transform 0.15s ease;
-      display: inline-block;
-    }
-    .evidence-card > details[open] > summary::before {
-      transform: rotate(90deg);
-    }
-    .evidence-card > details > summary:hover { background: rgba(74, 222, 128, 0.04); }
-    .evidence-stream {
-      font-weight: 700;
-      font-size: 13px;
-    }
-    .evidence-signal {
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 0.05em;
-      text-transform: uppercase;
-      padding: 2px 8px;
-      border-radius: 4px;
-      border: 1px solid var(--border);
-      background: var(--card);
-    }
-    .evidence-signal.pos     { color: var(--accent); border-color: var(--accent-dim); }
-    .evidence-signal.neg     { color: var(--danger); border-color: var(--danger); }
-    .evidence-signal.neutral { color: var(--muted);  border-color: var(--muted); }
-
-    .evidence-strength-label,
-    .evidence-confidence-label {
-      font-size: 10px;
-      color: var(--muted);
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-    }
-    .evidence-card .evidence-body {
-      padding: 0 14px 14px;
-      border-top: 1px solid var(--border);
-    }
-    .evidence-card .evidence-body p {
-      margin: 12px 0 4px;
-      font-size: 13px;
-    }
-    .evidence-card .evidence-body p span {
-      display: inline-block;
-      width: 130px;
-      color: var(--muted);
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-    }
-    .evidence-card .evidence-body code {
-      font-family: ui-monospace, "SF Mono", Menlo, monospace;
-      font-size: 12px;
-      background: var(--card);
-      padding: 2px 6px;
-      border-radius: 4px;
-    }
-    .evidence-card .evidence-meta {
-      display: grid;
-      grid-template-columns: max-content 1fr;
-      gap: 4px 12px;
-      margin: 12px 0 0;
-      font-size: 12px;
-    }
-    .evidence-card .evidence-meta dt {
-      color: var(--muted);
-      text-transform: lowercase;
-    }
-    .evidence-card .evidence-meta dd {
-      margin: 0;
-      font-family: ui-monospace, "SF Mono", Menlo, monospace;
-      font-size: 11px;
-      word-break: break-word;
-    }
-
-    /* ===== Tables ===== */
-    .table-wrap { overflow-x: auto; }
-    table.data-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 13px;
-      font-variant-numeric: tabular-nums;
-    }
-    table.data-table th,
-    table.data-table td {
-      text-align: left;
-      padding: 8px 12px;
-      border-bottom: 1px solid var(--border);
-      white-space: nowrap;
-    }
-    table.data-table th {
-      font-weight: 600;
-      color: var(--muted);
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-    }
-    table.data-table td.num { text-align: right; }
-    table.data-table tr:last-child td { border-bottom: none; }
-
-    /* ===== Disclaimer block ===== */
-    .disclaimer {
-      background: rgba(239, 68, 68, 0.08);
-      border: 1px solid rgba(239, 68, 68, 0.3);
-      border-radius: 8px;
-      padding: 12px 14px;
-      color: var(--foreground);
-      font-size: 13px;
-      line-height: 1.55;
-    }
-    .disclaimer strong { color: var(--danger); }
-
-    /* ===== Empty / error states ===== */
-    .empty-state {
-      padding: 24px;
-      color: var(--muted);
-      font-size: 13px;
-      text-align: center;
-    }
-    .error-state {
-      padding: 24px;
-      color: var(--danger);
-      background: rgba(239, 68, 68, 0.08);
-      border: 1px solid rgba(239, 68, 68, 0.3);
-      border-radius: 8px;
-      font-size: 13px;
-      text-align: center;
-    }
-
-    /* ===== Footer ===== */
-    footer.app-footer {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding-top: 12px;
-      border-top: 1px solid var(--border);
-      font-size: 11px;
-      color: var(--muted);
-      gap: 12px;
-      flex-wrap: wrap;
-    }
-
-    /* ===== Refresh indicator (header) ===== */
-    .refresh-indicator {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 11px;
-      color: var(--muted);
-    }
-    .refresh-indicator .spinner {
-      width: 10px;
-      height: 10px;
-      border: 2px solid var(--border);
-      border-top-color: var(--accent);
-      border-radius: 50%;
-      display: none;
-      animation: spin 0.8s linear infinite;
-    }
-    .refresh-indicator.is-loading .spinner { display: inline-block; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    /* ===== Mobile ===== */
-    @media (max-width: 720px) {
-      main { padding: 16px 12px 32px; }
-      .detail-header { grid-template-columns: 1fr; }
-      .evidence-card > details > summary {
-        grid-template-columns: 1fr auto;
-      }
-      .evidence-strength-label,
-      .evidence-confidence-label { display: none; }
-      .card { padding: 12px; }
-      .brand h1 { font-size: 18px; }
-    }
-  </style>
+  <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <main>
+  <!-- Animated Apple gradient mesh — fixed, behind everything, non-interactive -->
+  <div class="bg-mesh" aria-hidden="true"></div>
+
+  <!-- ===== Shared top navigation (Liquid Glass) ===== -->
+  <nav class="app-nav" aria-label="primary">
+    <a class="nav-brand" href="index.html">
+      <span class="nav-brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/></svg>
+      </span>
+      Finance AI V3
+    </a>
+    <div class="nav-links">
+      <a href="index.html">Genel Bakış / Overview</a>
+      <a href="decisions.html">Kararlar / Decisions</a>
+      <a href="portfolio.html">Portföy / Portfolio</a>
+      <a href="alerts.html">Uyarılar / Alerts</a>
+      <a href="system-health.html">Sistem Sağlığı / System Health</a>
+    </div>
+    <div class="nav-right">
+      <span class="refresh-indicator" id="refresh-indicator" aria-live="polite">
+        <span class="spinner" aria-hidden="true"></span>
+        <span class="text">yenileme — 60sn / refresh — 60s</span>
+      </span>
+    </div>
+  </nav>
+
+  <main class="container">
     <!-- ===== Header ===== -->
     <header class="app-header">
       <div class="brand">
         <a class="back-link" href="decisions.html">← Kararlar / Decisions</a>
         <h1 id="page-title">Karar Detayı / Decision Detail</h1>
-        <p class="subtitle">Kanıt izi, uyum denetimi ve benzer geçmiş kararlar</p>
+        <p class="subtitle">Kanıt izi, uyum denetimi ve benzer geçmiş kararlar / Evidence trace, compliance audit, similar past decisions</p>
       </div>
-      <span class="refresh-indicator" id="refresh-indicator" aria-live="polite">
-        <span class="spinner" aria-hidden="true"></span>
-        <span class="text">yenileme — 60sn</span>
-      </span>
     </header>
 
     <!-- ===== Decision summary ===== -->
-    <section class="card" id="summary-card" aria-labelledby="summary-heading">
+    <section class="card glass" id="summary-card" aria-labelledby="summary-heading">
       <h2 id="summary-heading">Özet / Summary</h2>
       <div class="detail-header">
         <div class="id-block">
@@ -426,7 +63,7 @@
     </section>
 
     <!-- ===== Action summary + disclaimer ===== -->
-    <section class="card" id="action-card" aria-labelledby="action-heading">
+    <section class="card glass" id="action-card" aria-labelledby="action-heading">
       <h2 id="action-heading">Aksiyon Özeti / Action Summary</h2>
       <p id="action-text"></p>
       <p class="subtle" id="action-size"></p>
@@ -440,31 +77,31 @@
     </section>
 
     <!-- ===== Evidence trace ===== -->
-    <section class="card" aria-labelledby="evidence-heading">
+    <section class="card glass" aria-labelledby="evidence-heading">
       <h2 id="evidence-heading">Kanıt İzi / Evidence Trace</h2>
       <div id="evidence-stack" class="evidence-stack"></div>
     </section>
 
     <!-- ===== Portfolio context ===== -->
-    <section class="card" aria-labelledby="portfolio-heading">
+    <section class="card glass" aria-labelledby="portfolio-heading">
       <h2 id="portfolio-heading">Portföy Bağlamı / Portfolio Context</h2>
       <div id="portfolio-context"></div>
     </section>
 
     <!-- ===== Compliance audit ===== -->
-    <section class="card" aria-labelledby="compliance-heading">
+    <section class="card glass" aria-labelledby="compliance-heading">
       <h2 id="compliance-heading">Uyum Denetimi / Compliance Audit</h2>
       <div id="compliance-audit"></div>
     </section>
 
     <!-- ===== LLM call logs ===== -->
-    <section class="card" aria-labelledby="llm-heading">
+    <section class="card glass" aria-labelledby="llm-heading">
       <h2 id="llm-heading">LLM Çağrı Logları / LLM Call Logs</h2>
       <div id="llm-logs"></div>
     </section>
 
     <!-- ===== Similar past decisions ===== -->
-    <section class="card" aria-labelledby="similar-heading">
+    <section class="card glass" aria-labelledby="similar-heading">
       <h2 id="similar-heading">Benzer Geçmiş Kararlar / Similar Past Decisions</h2>
       <div id="similar-list"></div>
     </section>

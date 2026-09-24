@@ -1,131 +1,50 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="tr">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="description" content="Finance AI V3 — Alerts inbox: severity, status, filters." />
   <title>Uyarılar / Alerts — Finance AI V3</title>
   <link rel="icon" type="image/svg+xml" href="favicon.svg" />
-  <style>
-    :root {
-      --bg: #0b0d12; --foreground: #e6e8ee; --muted: #8a91a3;
-      --card: #12151c; --border: #232733;
-      --accent: #4ade80; --accent-dim: #22c55e;
-      --danger: #ef4444; --warn: #f59e0b; --info: #60a5fa; --link: #60a5fa;
-      --code-bg: #0f1218; --radius: 10px; --max-width: 720px; --gap: 16px;
-    }
-    * { box-sizing: border-box; }
-    html, body {
-      margin: 0; padding: 0; background: var(--bg); color: var(--foreground);
-      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-      font-size: 15px; line-height: 1.5; -webkit-font-smoothing: antialiased;
-    }
-    a { color: var(--link); text-decoration: none; }
-    a:hover { text-decoration: underline; }
-    nav.crumbs { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
-    nav.crumbs a { color: var(--muted); }
-    nav.crumbs a:hover { color: var(--foreground); }
-    main {
-      max-width: var(--max-width); margin: 0 auto;
-      padding: 24px 16px 48px; display: flex; flex-direction: column; gap: var(--gap);
-    }
-    header.app-header {
-      display: flex; align-items: center; justify-content: space-between; gap: 12px;
-      padding-bottom: 16px; border-bottom: 1px solid var(--border); flex-wrap: wrap;
-    }
-    .brand h1 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -0.01em; }
-    .brand .subtitle { margin: 2px 0 0; font-size: 12px; color: var(--muted); }
-    .refresh-indicator { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
-    .refresh-indicator .spinner {
-      width: 10px; height: 10px;
-      border: 2px solid var(--border); border-top-color: var(--accent);
-      border-radius: 50%; display: none; animation: spin 0.8s linear infinite;
-    }
-    .refresh-indicator.is-loading .spinner { display: inline-block; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; }
-    .card h2 {
-      margin: 0 0 12px; font-size: 14px; font-weight: 600; letter-spacing: 0.04em;
-      text-transform: uppercase; color: var(--muted);
-    }
-
-    .filters { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
-    .filter-group { display: flex; gap: 4px; flex-wrap: wrap; }
-    .chip {
-      display: inline-flex; align-items: center; gap: 4px;
-      padding: 5px 10px; border-radius: 999px;
-      font-size: 12px; font-weight: 600; cursor: pointer;
-      background: var(--code-bg); border: 1px solid var(--border); color: var(--muted);
-      transition: border-color 0.1s, color 0.1s, background 0.1s;
-      user-select: none;
-    }
-    .chip:hover { color: var(--foreground); }
-    .chip.is-active { color: var(--foreground); border-color: var(--accent); background: rgba(74,222,128,0.08); }
-    .chip-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; margin-right: 4px; }
-
-    ul.alerts { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
-    li.alert {
-      padding: 12px 12px;
-      background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px;
-      cursor: pointer; transition: border-color 0.1s, background 0.1s;
-    }
-    li.alert:hover { border-color: var(--border); background: rgba(74,222,128,0.04); }
-    li.alert.is-read { opacity: 0.65; }
-    li.alert.is-unread { border-left: 3px solid var(--accent); padding-left: 9px; }
-    .alert-row {
-      display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;
-    }
-    .alert-title { font-weight: 700; font-size: 14px; }
-    .alert-meta { font-size: 11px; color: var(--muted); margin-top: 4px; display: flex; gap: 8px; flex-wrap: wrap; }
-    .alert-detail { display: none; margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border); font-size: 12px; color: var(--foreground); }
-    li.alert.is-expanded .alert-detail { display: block; }
-
-    .sev {
-      display: inline-block; padding: 2px 7px; border-radius: 4px;
-      font-size: 10px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
-    }
-    .sev.critical { background: rgba(239, 68, 68, 0.15); color: var(--danger); border: 1px solid var(--danger); }
-    .sev.warn     { background: rgba(245, 158, 11, 0.15); color: var(--warn);   border: 1px solid var(--warn); }
-    .sev.info     { background: rgba(96, 165, 250, 0.15); color: var(--info);  border: 1px solid var(--info); }
-
-    .status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
-    .status-dot.is-read { background: var(--muted); }
-    .empty-state { padding: 24px; color: var(--muted); font-size: 13px; text-align: center; }
-    .error-state { padding: 12px; color: var(--danger); background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 6px; font-size: 12px; }
-
-    footer.app-footer {
-      display: flex; justify-content: space-between; align-items: center;
-      padding-top: 12px; border-top: 1px solid var(--border);
-      font-size: 11px; color: var(--muted); gap: 12px; flex-wrap: wrap;
-    }
-
-    @media (max-width: 720px) {
-      main { padding: 16px 12px 32px; }
-      .brand h1 { font-size: 18px; }
-      .card { padding: 12px; }
-      li.alert { padding: 10px; }
-    }
-  </style>
+  <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <main>
-    <nav class="crumbs" aria-label="Breadcrumb">
-      <a href="index.html">← Ana sayfa / Home</a>
-    </nav>
+  <!-- Animated Apple gradient mesh — fixed, behind everything, non-interactive -->
+  <div class="bg-mesh" aria-hidden="true"></div>
 
-    <header class="app-header">
-      <div class="brand">
-        <h1>Uyarılar / Alerts</h1>
-        <p class="subtitle">Sistem uyarıları &amp; bildirimler / System alerts &amp; notifications</p>
-      </div>
+  <!-- ===== Shared top navigation (Liquid Glass) ===== -->
+  <nav class="app-nav" aria-label="primary">
+    <a class="nav-brand" href="index.html">
+      <span class="nav-brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/></svg>
+      </span>
+      Finance AI V3
+    </a>
+    <div class="nav-links">
+      <a href="index.html">Genel Bakış / Overview</a>
+      <a href="decisions.html">Kararlar / Decisions</a>
+      <a href="portfolio.html">Portföy / Portfolio</a>
+      <a href="alerts.html" class="is-active">Uyarılar / Alerts</a>
+      <a href="system-health.html">Sistem Sağlığı / System Health</a>
+    </div>
+    <div class="nav-right">
       <span class="refresh-indicator" id="refresh-indicator" aria-live="polite">
         <span class="spinner" aria-hidden="true"></span>
         <span class="text" id="refresh-text">idle</span>
       </span>
+    </div>
+  </nav>
+
+  <main class="container">
+    <header class="app-header">
+      <div class="brand">
+        <a class="back-link" href="index.html">← Ana sayfa / Home</a>
+        <h1>Uyarılar / Alerts</h1>
+        <p class="subtitle">Sistem uyarıları &amp; bildirimler / System alerts &amp; notifications</p>
+      </div>
     </header>
 
-    <section class="card">
+    <section class="card glass">
       <!-- Filter chips: severity + status -->
       <div class="filters" role="group" aria-label="Filters">
         <span class="chip-label">Ciddiyet / Severity:</span>
@@ -155,6 +74,7 @@
     </footer>
   </main>
 
+  <script src="app.js" defer></script>
   <script src="alerts.js" defer></script>
 </body>
 </html>
