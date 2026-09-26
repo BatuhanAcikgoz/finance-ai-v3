@@ -17,6 +17,7 @@ from routes import (
     portfolio,
     settings,
 )
+from services import decision_loop  # Phase-1 live decision loop (issue #7)
 
 # Import-safe infra helpers — they no-op cleanly when DB/Redis are unreachable.
 import db
@@ -31,6 +32,8 @@ async def lifespan(app: FastAPI):
 
     Initializes the lazy asyncpg pool + Redis client at startup (best-effort —
     logs and continues if the infra is down) and tears them down on shutdown.
+    The decision loop is started after the pool is ready so the first cycle
+    has data to work with.
     """
     logger = structlog.get_logger()
     logger.info("api_gateway.starting", version="0.1.0")
@@ -42,10 +45,16 @@ async def lifespan(app: FastAPI):
         await db.ensure_schema()
     await redis_cache.get_client()  # lazy-connect; cheap
 
+    # Start the Phase-1 live decision loop (issue #7). It self-suspends if
+    # the pool is None and resumes on the next cycle once DB is back.
+    loop = decision_loop.get_loop()
+    loop.start()
+
     try:
         yield
     finally:
         logger.info("api_gateway.shutdown")
+        await loop.stop()
         await db.close_pool()
         await redis_cache.close_client()
 
