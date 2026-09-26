@@ -1340,32 +1340,74 @@
   // ---- WebSocket live tick (issue #1 / FR-005) ------------------------------
   var _ws = null;
   var _wsAttempts = 0;
-  function connectWs() {
+  var _wsToken = null;
+
+  function ensureWsToken(cb) {
+    if (_wsToken) { cb(_wsToken); return; }
     try {
-      var proto = (location.protocol === 'https:') ? 'wss:' : 'ws:';
-      var url = proto + '//' + (location.host || 'localhost:8080') +
-                '/api/v1/market/ws/market';
-      // nginx routes /api/v1/* to the api-gateway, but ws upgrade needs to be
-      // explicitly configured. If the upgrade fails we silently fall back to
-      // the polling loop in refreshAll().
-      _ws = new WebSocket(url);
-      _ws.onmessage = function (ev) {
-        try {
-          var msg = JSON.parse(ev.data);
-          if (msg && msg.ticker && typeof msg.last === 'number') {
-            liveTicks[msg.ticker] = msg;
-            flashTickerCell(msg.ticker);
+      var cached = localStorage.getItem('finance-ai.ws_token');
+      var expiry = parseInt(localStorage.getItem('finance-ai.ws_token_exp') || '0', 10);
+      if (cached && expiry && Date.now() / 1000 < expiry - 60) {
+        _wsToken = cached;
+        cb(cached);
+        return;
+      }
+    } catch (e) { /* ignore */ }
+    // Fetch a fresh dev-token from the api-gateway.
+    fetch('/api/v1/auth/dev-token', { method: 'POST',
+        headers: { 'Accept': 'application/json' } })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (data) {
+        if (data && data.access_token) {
+          _wsToken = data.access_token;
+          try {
+            localStorage.setItem('finance-ai.ws_token', _wsToken);
+            localStorage.setItem('finance-ai.ws_token_exp',
+              String(Math.floor(Date.now() / 1000) + (data.expires_in || 3600)));
+          } catch (e) { /* ignore */ }
+          cb(_wsToken);
+        } else {
+          cb(null);  // dev-token endpoint disabled — connect without auth
+        }
+      })
+      .catch(function () { cb(null); });
+  }
+
+  function connectWs() {
+    ensureWsToken(function (token) {
+      try {
+        var proto = (location.protocol === 'https:') ? 'wss:' : 'ws:';
+        var url = proto + '//' + (location.host || 'localhost:8080') +
+                  '/api/v1/market/ws/market';
+        if (token) url += '?token=' + encodeURIComponent(token);
+        _ws = new WebSocket(url);
+        _ws.onmessage = function (ev) {
+          try {
+            var msg = JSON.parse(ev.data);
+            if (msg && msg.ticker && typeof msg.last === 'number') {
+              liveTicks[msg.ticker] = msg;
+              flashTickerCell(msg.ticker);
+            }
+          } catch (e) { /* ignore */ }
+        };
+        _ws.onopen = function () { _wsAttempts = 0; };
+        _ws.onerror = function () { /* let onclose handle retry */ };
+        _ws.onclose = function (ev) {
+          // 1008 = policy violation (auth failed). Clear cached token and retry
+          // after a backoff so we can fetch a fresh one.
+          if (ev && ev.code === 1008) {
+            _wsToken = null;
+            try {
+              localStorage.removeItem('finance-ai.ws_token');
+              localStorage.removeItem('finance-ai.ws_token_exp');
+            } catch (e) { /* ignore */ }
           }
-        } catch (e) { /* ignore */ }
-      };
-      _ws.onopen = function () { _wsAttempts = 0; };
-      _ws.onerror = function () { /* let onclose handle retry */ };
-      _ws.onclose = function () {
-        _wsAttempts++;
-        var delay = Math.min(30000, 1000 * Math.pow(2, _wsAttempts));
-        setTimeout(connectWs, delay);
-      };
-    } catch (e) { /* websocket unavailable */ }
+          _wsAttempts++;
+          var delay = Math.min(30000, 1000 * Math.pow(2, _wsAttempts));
+          setTimeout(connectWs, delay);
+        };
+      } catch (e) { /* websocket unavailable */ }
+    });
   }
 
   // Most-recent tick per ticker; merged into the next refreshAll() render.

@@ -30,9 +30,10 @@ import time
 from dataclasses import dataclass
 from typing import Any
 
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, status
 
 import db
+from routes.auth import decode_jwt
 
 logger = logging.getLogger(__name__)
 
@@ -196,11 +197,41 @@ def get_engine() -> TickEngine:
     return _engine
 
 
-# -------- WebSocket endpoints ----------------------------------------------
+# ---- WebSocket endpoints ----------------------------------------------
+
+async def _authorize_ws(ws: WebSocket) -> dict | None:
+    """Validate the connection's JWT.
+
+    Accepts the token from either:
+      * the '?token=' query string (used by the browser WS API)
+      * the first message after connect: {type: "auth", token: "..."}
+
+    Returns the decoded claims, or None on failure.
+    """
+    token = ws.query_params.get("token")
+    if token:
+        return decode_jwt(token)
+
+    # Wait briefly for a first-message handshake.
+    try:
+        first = await asyncio.wait_for(ws.receive_text(), timeout=2.0)
+        import json as _json
+        msg = _json.loads(first)
+        if isinstance(msg, dict) and msg.get("type") == "auth" and msg.get("token"):
+            return decode_jwt(msg["token"])
+    except (asyncio.TimeoutError, Exception):  # noqa: BLE001
+        pass
+    return None
+
 
 @router.websocket("/ws/market")
 async def ws_market_all(ws: WebSocket) -> None:
     """Broadcast every tick from every ticker."""
+    claims = await _authorize_ws(ws)
+    if not claims:
+        await ws.close(code=status.WS_1008_POLICY_VIOLATION,
+                        reason="missing or invalid token")
+        return
     await manager.connect(ws)
     # Greet the client so it sees immediate activity.
     try:
@@ -208,6 +239,7 @@ async def ws_market_all(ws: WebSocket) -> None:
             "type": "hello",
             "ts": time.time(),
             "msg": "subscribed to all tickers",
+            "sub": claims.get("sub"),
             "active_tickers": sorted(list(get_engine()._states.keys())),
         }))
         while True:
@@ -229,6 +261,11 @@ async def ws_market_symbol(ws: WebSocket, symbol: str) -> None:
     Then forwards only matching tick events.
     """
     symbol = symbol.upper()
+    claims = await _authorize_ws(ws)
+    if not claims:
+        await ws.close(code=status.WS_1008_POLICY_VIOLATION,
+                        reason="missing or invalid token")
+        return
     await manager.connect(ws)
     try:
         engine = get_engine()
