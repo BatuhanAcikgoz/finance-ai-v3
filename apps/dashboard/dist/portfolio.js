@@ -248,8 +248,132 @@
     }).then(function () { setLoading(false); });
   }
 
+  // ---- Portfolio editor (issue #4 / FR-046) -------------------------------
+
+  var ACTIVE_KEY = 'finance-ai.active_portfolio';
+  var $btnNew = document.getElementById('btn-new-portfolio');
+  var $btnRename = document.getElementById('btn-rename-portfolio');
+  var $btnDelete = document.getElementById('btn-delete-portfolio');
+  var $editModal = document.getElementById('portfolio-modal');
+  var $editTitle = document.getElementById('portfolio-modal-title');
+  var $editName = document.getElementById('portfolio-name');
+  var $editCurrency = document.getElementById('portfolio-currency');
+  var $editForm = document.getElementById('portfolio-form');
+  var editingId = null;  // null = creating, otherwise editing existing.
+
+  function loadList() {
+    return fetchJson('/v1/portfolio/').then(function (data) {
+      var items = (data && (data.items || data.portfolios || data)) || [];
+      $portfolioSel.innerHTML = '';
+      items.forEach(function (p) {
+        var opt = document.createElement('option');
+        opt.value = p.portfolio_id || p.id || 'default';
+        opt.textContent = p.name || opt.value;
+        $portfolioSel.appendChild(opt);
+      });
+      var active = localStorage.getItem(ACTIVE_KEY);
+      if (active && Array.from($portfolioSel.options).some(function (o) { return o.value === active; })) {
+        $portfolioSel.value = active;
+      }
+      toggleEditButtons();
+    }).catch(function () {
+      if ($portfolioSel.options.length === 0) {
+        var opt = document.createElement('option');
+        opt.value = 'default';
+        opt.textContent = 'default';
+        $portfolioSel.appendChild(opt);
+      }
+      toggleEditButtons();
+    });
+  }
+
+  function toggleEditButtons() {
+    var v = $portfolioSel.value || '';
+    $btnDelete.disabled = (v === 'default');
+    $btnRename.disabled = !v;
+  }
+
+  function openEditModal(mode) {
+    editingId = mode === 'rename' ? $portfolioSel.value : null;
+    $editTitle.textContent = mode === 'rename'
+      ? 'Yeniden adlandır / Rename portfolio'
+      : 'Yeni portföy / New portfolio';
+    if (editingId) {
+      var name = $portfolioSel.options[$portfolioSel.selectedIndex].textContent;
+      $editName.value = name;
+    } else {
+      $editName.value = '';
+    }
+    $editCurrency.disabled = mode === 'rename';
+    if (typeof $editModal.showModal === 'function') {
+      $editModal.showModal();
+    } else {
+      $editModal.setAttribute('open', 'true');
+    }
+  }
+
+  $editForm.addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    var name = ($editName.value || '').trim();
+    var currency = $editCurrency.value;
+    if (!name) { return; }
+    var p = editingId
+      ? fetch(API_BASE + '/v1/portfolio/' + encodeURIComponent(editingId), {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+          body: JSON.stringify({ name: name })
+        }).then(function (r) { return r.ok ? r.json() : Promise.reject(r); })
+      : fetch(API_BASE + '/v1/portfolio/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+          body: JSON.stringify({ name: name, base_currency: currency })
+        }).then(function (r) { return r.ok ? r.json() : Promise.reject(r); });
+
+    p.then(function (created) {
+      var newId = created.portfolio_id || (editingId || 'default');
+      if (typeof $editModal.close === 'function') $editModal.close();
+      else $editModal.removeAttribute('open');
+      return loadList().then(function () {
+        $portfolioSel.value = newId;
+        localStorage.setItem(ACTIVE_KEY, newId);
+        refresh();
+      });
+    }).catch(function (err) {
+      console.error('portfolio editor failed', err);
+      if (window.FA && window.FA.ui && window.FA.ui.toast) {
+        window.FA.ui.toast('error', 'Portföy kaydedilemedi / Could not save portfolio');
+      }
+    });
+  });
+
+  $btnNew.addEventListener('click', function () { openEditModal('new'); });
+  $btnRename.addEventListener('click', function () { openEditModal('rename'); });
+  $btnDelete.addEventListener('click', function () {
+    var v = $portfolioSel.value;
+    if (!v || v === 'default') return;
+    if (!confirm('Bu portföyü silmek istediğine emin misin? / Delete this portfolio?')) return;
+    fetch(API_BASE + '/v1/portfolio/' + encodeURIComponent(v), {
+      method: 'DELETE',
+      headers: { 'Accept': 'application/json' }
+    }).then(function (r) {
+      if (r.ok || r.status === 204) {
+        localStorage.removeItem(ACTIVE_KEY);
+        return loadList().then(refresh);
+      }
+      return Promise.reject(r);
+    }).catch(function (err) {
+      console.error('delete failed', err);
+    });
+  });
+  $portfolioSel.addEventListener('change', function () {
+    localStorage.setItem(ACTIVE_KEY, $portfolioSel.value);
+    toggleEditButtons();
+    refresh();
+  });
+
+  // ---- Refresh + action wiring ---------------------------------------------
+
   $btnRefresh.addEventListener('click', refresh);
-  $portfolioSel.addEventListener('change', refresh);
   $btnRebal.addEventListener('click', function () {
     openModal('Rebalance — Yakında / Coming in Phase 2', 'Rebalance işlem motoru bir sonraki sprint\'te devreye alınacak. / The rebalance execution engine will ship next sprint.');
   });
@@ -261,6 +385,7 @@
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeModal(); });
 
   // ---- Boot -----------------------------------------------------------------
-  refresh();
+  loadList().then(refresh).catch(refresh);
   setInterval(refresh, REFRESH_MS);
+  setInterval(loadList, REFRESH_MS * 4);
 })();

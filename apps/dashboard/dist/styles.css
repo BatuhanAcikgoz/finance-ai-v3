@@ -1990,3 +1990,44 @@ footer .footer-row {
     transition-duration: 0.01ms !important;
   }
 }
+/* Issue #4 / FR-046 — danger button + portfolio editor dialog */
+.btn-danger {
+  background: linear-gradient(180deg, #ff453a, #c01818);
+  color: white;
+}
+.btn-danger:disabled { opacity: 0.4; cursor: not-allowed; }
+
+dialog.glass {
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  padding: 24px;
+  background: var(--card);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  color: var(--foreground);
+  max-width: 440px;
+  width: calc(100% - 32px);
+  box-shadow: var(--shadow-card);
+}
+dialog.glass::backdrop {
+  background: rgba(11, 16, 32, 0.55);
+  backdrop-filter: blur(8px);
+}
+dialog.glass form { display: flex; flex-direction: column; gap: 14px; }
+dialog.glass form h2 { margin: 0 0 6px; font-size: var(--fs-lg, 20px); }
+dialog.glass form label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
+dialog.glass form label > span { color: var(--muted); }
+dialog.glass form input, dialog.glass form select {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border);
+  color: var(--foreground);
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 14px;
+  outline: none;
+}
+dialog.glass form input:focus, dialog.glass form select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(76,194,255,0.25);
+}
+dialog.glass menu { display: flex; gap: 8px; justify-content: flex-end; margin: 0; padding: 0; }
