@@ -88,11 +88,15 @@ SCHEMA_SQL: tuple[str, ...] = (
         compliance_status     VARCHAR(10) NOT NULL DEFAULT 'PENDING' CHECK
                               (compliance_status IN ('PENDING','APPROVED','BLOCKED')),
         compliance_reason     TEXT,
+        disclaimer            TEXT,
         effective_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         data_completeness     VARCHAR(10) NOT NULL DEFAULT 'PARTIAL',
         prompt_versions       JSONB NOT NULL DEFAULT '{}'::jsonb
     )
+    """,
+    """
+    ALTER TABLE decision.decisions ADD COLUMN IF NOT EXISTS disclaimer TEXT
     """,
     """
     CREATE INDEX IF NOT EXISTS idx_decisions_created_at

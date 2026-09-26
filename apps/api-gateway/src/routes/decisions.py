@@ -68,6 +68,9 @@ class SynthesizeResponse(BaseModel):
     decision_id: str
     created_at: str
     status: str = "stored"
+    compliance_status: str | None = None
+    compliance_notes: list[str] | None = None
+    disclaimer: str | None = None
 
 
 def _row_to_dict(row) -> dict:
@@ -85,6 +88,7 @@ def _row_to_dict(row) -> dict:
         "portfolio_context": row["portfolio_context"],
         "compliance_status": row["compliance_status"],
         "compliance_reason": row["compliance_reason"],
+        "disclaimer": row["disclaimer"] if "disclaimer" in row.keys() else None,
         "effective_at": row["effective_at"].isoformat() if row["effective_at"] else None,
         "created_at": row["created_at"].isoformat() if row["created_at"] else None,
         "data_completeness": row["data_completeness"],
@@ -125,7 +129,7 @@ async def list_recent_decisions(
         SELECT decision_id, portfolio_id, ticker, action, confidence,
                position_size_pct, evidence, evidence_count, contradiction_score,
                supervisor_reasoning, portfolio_context, compliance_status,
-               compliance_reason, effective_at, created_at, data_completeness,
+               compliance_reason, disclaimer, effective_at, created_at, data_completeness,
                prompt_versions
         FROM decision.decisions
         {where_clause}
@@ -217,7 +221,7 @@ async def get_decision(decision_id: str):
         SELECT decision_id, portfolio_id, ticker, action, confidence,
                position_size_pct, evidence, evidence_count, contradiction_score,
                supervisor_reasoning, portfolio_context, compliance_status,
-               compliance_reason, effective_at, created_at, data_completeness,
+               compliance_reason, disclaimer, effective_at, created_at, data_completeness,
                prompt_versions
         FROM decision.decisions
         WHERE decision_id = $1
@@ -237,7 +241,13 @@ async def synthesize_decision(req: SynthesizeRequest):
 
     Used by ``services/decision_engine`` workers. Returns the generated
     ``decision_id`` so the caller can publish it to message buses downstream.
+
+    Issue #2 / FR-091: every decision goes through the ComplianceAgent before
+    insert — position-size, universe, and confidence checks. The disclaimer
+    text is attached to the row.
     """
+    from services import compliance as compliance_agent
+
     # Generate portfolio_id if the worker didn't supply one (dev convenience).
     portfolio_uuid = (
         uuid.UUID(req.portfolio_id) if req.portfolio_id else uuid.uuid4()
@@ -245,18 +255,39 @@ async def synthesize_decision(req: SynthesizeRequest):
     new_id = uuid.uuid4()
     now = datetime.now(timezone.utc)
 
+    # Compliance review (rule-based, fast).
+    candidate = {
+        "ticker": req.symbol,
+        "action": req.action,
+        "confidence": req.score,
+        "position_size_pct": req.position_size_pct,
+    }
+    result = compliance_agent.review(candidate)
+    # Default to the agent's verdict. The request can override only with
+    # explicit APPROVED / BLOCKED (PENDING is treated as "let the agent decide").
+    requested = (req.compliance_status or "").upper()
+    if requested == "APPROVED" and result.status == "APPROVED":
+        final_compliance_status = "APPROVED"
+    elif requested == "BLOCKED":
+        final_compliance_status = "BLOCKED"
+    else:
+        final_compliance_status = result.status
+    compliance_reason = "; ".join(result.notes)
+    disclaimer_text = result.disclaimer_text
+
     status_msg = await db.execute(
         """
         INSERT INTO decision.decisions (
             decision_id, portfolio_id, ticker, action, confidence,
             position_size_pct, evidence, evidence_count, contradiction_score,
-            supervisor_reasoning, compliance_status, effective_at,
-            data_completeness, prompt_versions
+            supervisor_reasoning, compliance_status, compliance_reason,
+            disclaimer, effective_at, data_completeness, prompt_versions
         ) VALUES (
             $1, $2, $3, $4, $5,
             $6, $7::jsonb, $8, $9,
             $10, $11, $12,
-            $13, $14::jsonb
+            $13, $14, $15,
+            $16::jsonb
         )
         """,
         new_id, portfolio_uuid, req.symbol, req.action, req.score,
@@ -265,7 +296,9 @@ async def synthesize_decision(req: SynthesizeRequest):
         req.evidence_count or 0,
         req.contradiction_score or 0.0,
         req.rationale,
-        req.compliance_status.upper(),
+        final_compliance_status,
+        compliance_reason,
+        disclaimer_text,
         now,
         req.data_completeness,
         _json(req.prompt_versions or {}),
@@ -280,6 +313,9 @@ async def synthesize_decision(req: SynthesizeRequest):
         decision_id=str(new_id),
         created_at=now.isoformat(),
         status="stored",
+        compliance_status=final_compliance_status,
+        compliance_notes=result.notes,
+        disclaimer=disclaimer_text,
     )
 
 
