@@ -116,12 +116,15 @@ async def list_backtests(limit: int = 50):
 
 @router.post("/run", response_model=RunBacktestResponse, status_code=201)
 async def run_backtest(req: RunBacktestRequest = RunBacktestRequest()):
-    """Insert a queued run row and return its UUID.
+    """Insert a queued run, execute the backtest, and persist results.
 
-    Does not block on actually running the backtest — the worker process
-    (services/backtest_engine) polls for ``ended_at IS NULL`` rows and
-    updates them when finished.
+    Issue #3 / FR-072..FR-074: the backtest is now actually computed in an
+    asyncio.create_task so the POST returns immediately and the row gets
+    filled in once ``run()`` completes (or the task fails, in which case we
+    just leave ended_at NULL — visible to the dashboard as 'pending').
     """
+    from services.backtest_runner import _Bar, run as run_bt
+
     try:
         new_id = uuid.uuid4()
         now = datetime.now(timezone.utc)
@@ -140,6 +143,57 @@ async def run_backtest(req: RunBacktestRequest = RunBacktestRequest()):
             if not await db.is_available():
                 raise HTTPException(status_code=503, detail="postgres unavailable")
             raise HTTPException(status_code=500, detail="insert failed")
+
+        async def _execute() -> None:
+            try:
+                pool = await db.get_pool()
+                if pool is None:
+                    return
+                tickers = await pool.fetch(
+                    "SELECT ticker FROM market_data.tickers "
+                    "WHERE is_active = TRUE AND is_index = FALSE"
+                )
+                if not tickers:
+                    return
+                bars_by_ticker: dict[str, list[_Bar]] = {}
+                for r in tickers:
+                    rows = await pool.fetch(
+                        """
+                        SELECT open, close FROM market_data.bars
+                        WHERE ticker = $1 AND timeframe = '1d'
+                        ORDER BY bar_start DESC LIMIT 365
+                        """,
+                        r["ticker"],
+                    )
+                    bars = list(reversed(rows))
+                    bars_by_ticker[r["ticker"]] = [
+                        _Bar(close=float(b["close"]), open=float(b["open"]))
+                        for b in bars
+                    ]
+                metrics = run_bt(bars_by_ticker)
+                await pool.execute(
+                    """
+                    UPDATE analysis.backtest_runs
+                    SET ended_at = NOW(),
+                        hit_rate = $2, total_trades = $3,
+                        winning_trades = $4, losing_trades = $5,
+                        avg_return = $6, sharpe = $7, max_drawdown = $8
+                    WHERE run_id = $1
+                    """,
+                    new_id,
+                    metrics["hit_rate"],
+                    metrics["total_trades"],
+                    metrics["winning_trades"],
+                    metrics["losing_trades"],
+                    metrics["avg_return"],
+                    metrics["sharpe"],
+                    metrics["max_drawdown"],
+                )
+            except Exception:  # noqa: BLE001
+                logger.exception("backtest.execute.failed run_id=%s", new_id)
+
+        import asyncio
+        asyncio.create_task(_execute())
 
         return RunBacktestResponse(run_id=str(new_id), status="queued")
     except HTTPException:
