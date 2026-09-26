@@ -756,6 +756,12 @@
   // BOOT
   // ===========================================================================
   function boot() {
+    // Page guard: app.js's overview-specific boot only runs on index.html.
+    // Other pages have their own <page>.js and would crash on missing
+    // elements (#symbols-body etc.), bringing down window.FA.ui before
+    // dependent modules (admin.js, settings.js) get a chance to use it.
+    if (!document.getElementById('symbols-body')) return;
+
     // Placeholders for sections whose endpoints aren't wired yet.
     renderPortfolioSkeleton();
     renderAlertsSkeleton();

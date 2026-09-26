@@ -341,7 +341,7 @@
   function loadAudit() {
     var $list = $('#audit-list');
     if (!$list) return;
-    adminGet('audit').then(function (data) {
+    adminGet('audit-log').then(function (data) {
       if (!data) {
         $list.innerHTML = '<li class="empty-state" style="padding-left:32px;">Endpoint henüz yok / Not implemented.</li>';
         return;
