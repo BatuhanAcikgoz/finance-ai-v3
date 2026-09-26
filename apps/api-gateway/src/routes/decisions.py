@@ -2,6 +2,7 @@
 
 Endpoints:
   GET  /v1/decisions/recent           → list recent decisions
+  GET  /v1/decisions/stats            → aggregate counts (issue #7)
   GET  /v1/decisions/{decision_id}    → fetch by UUID
   POST /v1/decisions/synthesize       → insert (used by decision-engine worker)
 """
@@ -139,6 +140,70 @@ async def list_recent_decisions(
     return {"items": items, "count": len(items)}
 
 
+@router.get("/stats")
+async def stats() -> dict:
+    """Aggregate counts of decision.decisions (issue #7).
+
+    Defined BEFORE the /{decision_id} wildcard route so '/stats' is matched
+    literally instead of being captured as a non-UUID decision_id.
+    """
+    from services import decision_loop
+
+    try:
+        total_row = await db.fetchrow(
+            "SELECT COUNT(*)::int AS total FROM decision.decisions"
+        )
+        total = total_row["total"] if total_row else 0
+
+        by_action_rows = await db.fetch(
+            "SELECT action, COUNT(*)::int AS n "
+            "FROM decision.decisions GROUP BY action"
+        )
+        by_action = {r["action"]: r["n"] for r in (by_action_rows or [])}
+
+        by_ticker_rows = await db.fetch(
+            "SELECT ticker, COUNT(*)::int AS n "
+            "FROM decision.decisions GROUP BY ticker"
+        )
+        by_ticker = {r["ticker"]: r["n"] for r in (by_ticker_rows or [])}
+
+        last_row = await db.fetchrow(
+            "SELECT MAX(created_at) AS last_at FROM decision.decisions"
+        )
+        last_run_at = (
+            last_row["last_at"].isoformat()
+            if last_row and last_row["last_at"]
+            else None
+        )
+
+        loop = decision_loop.get_loop()
+        return {
+            "total": total,
+            "by_action": by_action,
+            "by_ticker": by_ticker,
+            "last_decision_at": last_run_at,
+            "loop_last_run_at": (
+                loop.last_run_at.isoformat() if loop.last_run_at else None
+            ),
+            "loop_last_run_count": loop.last_run_count,
+            "loop_interval_seconds": loop.interval,
+        }
+    except Exception as exc:
+        logger.exception("decisions.stats.failed: %s", str(exc))
+        loop = decision_loop.get_loop()
+        return {
+            "total": 0,
+            "by_action": {},
+            "by_ticker": {},
+            "last_decision_at": None,
+            "loop_last_run_at": None,
+            "loop_last_run_count": 0,
+            "loop_interval_seconds": loop.interval,
+            "degraded": True,
+            "error": str(exc),
+        }
+
+
 @router.get("/{decision_id}")
 async def get_decision(decision_id: str):
     """Fetch decision by UUID."""
@@ -224,3 +289,7 @@ def _json(value) -> str:
     """Asyncpg wants jsonb as a JSON string, not a Python dict."""
     import json
     return json.dumps(value, default=str)
+
+
+# (stats endpoint lives above the /{decision_id} wildcard route so it isn't
+# shadowed — see the comment in its docstring.)
