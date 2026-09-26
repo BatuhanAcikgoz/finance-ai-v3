@@ -371,3 +371,141 @@ async def create_portfolio(req: CreatePortfolioRequest):
     except Exception as exc:  # noqa: BLE001 — wrap per spec
         logger.exception("portfolio.create.error: %s", str(exc))
         return _err("create_portfolio_failed", str(exc))
+
+
+# -- multi-portfolio support (issue #4 / FR-046) -------------------------
+
+class UpdatePortfolioRequest(BaseModel):
+    """PATCH body for editing a portfolio's name / base_currency."""
+    name: str | None = Field(None, min_length=1, max_length=120)
+    base_currency: str | None = Field(None, min_length=3, max_length=3)
+
+
+@router.delete("/{portfolio_id}", status_code=204)
+async def delete_portfolio(portfolio_id: str) -> None:
+    """Remove a portfolio and its holdings (issue #4 / FR-046).
+
+    Refuses to delete the synthesized 'default' portfolio — it represents
+    the user's working state when no real portfolios exist.
+    """
+    try:
+        pid = uuid.UUID(portfolio_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="portfolio_id must be a UUID")
+
+    row = await db.fetchrow(
+        "SELECT name FROM portfolio.portfolios WHERE portfolio_id = $1",
+        pid,
+    )
+    if row is None:
+        if not await db.is_available():
+            raise HTTPException(status_code=503, detail="postgres unavailable")
+        raise HTTPException(status_code=404, detail="portfolio not found")
+    if row["name"] == "Default Portfolio":
+        raise HTTPException(
+            status_code=400,
+            detail="cannot delete the synthesized 'Default Portfolio' — create a new one first",
+        )
+
+    await db.execute(
+        "DELETE FROM portfolio.holdings WHERE portfolio_id = $1",
+        pid,
+    )
+    await db.execute(
+        "DELETE FROM portfolio.portfolios WHERE portfolio_id = $1",
+        pid,
+    )
+
+
+@router.patch("/{portfolio_id}")
+async def update_portfolio(portfolio_id: str, req: UpdatePortfolioRequest) -> dict:
+    """Edit a portfolio's name / base_currency (issue #4 / FR-046)."""
+    try:
+        pid = uuid.UUID(portfolio_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="portfolio_id must be a UUID")
+
+    sets: list[str] = []
+    args: list[Any] = []
+    if req.name is not None:
+        args.append(req.name)
+        sets.append(f"name = ${len(args)}")
+    if req.base_currency is not None:
+        args.append(req.base_currency.upper())
+        sets.append(f"base_currency = ${len(args)}")
+    if not sets:
+        raise HTTPException(status_code=400, detail="no fields to update")
+    sets.append("updated_at = NOW()")
+    args.append(pid)
+
+    status_msg = await db.execute(
+        f"UPDATE portfolio.portfolios SET {', '.join(sets)} WHERE portfolio_id = ${len(args)}",
+        *args,
+    )
+    if not status_msg:
+        if not await db.is_available():
+            raise HTTPException(status_code=503, detail="postgres unavailable")
+        raise HTTPException(status_code=500, detail="update failed")
+
+    row = await db.fetchrow(
+        "SELECT portfolio_id, name, base_currency, updated_at "
+        "FROM portfolio.portfolios WHERE portfolio_id = $1",
+        pid,
+    )
+    if row is None:
+        raise HTTPException(status_code=404, detail="portfolio not found")
+    return {
+        "portfolio_id": str(row["portfolio_id"]),
+        "name": row["name"],
+        "base_currency": row["base_currency"],
+        "updated_at": row["updated_at"].isoformat() if row["updated_at"] else None,
+    }
+
+
+@router.get("/active")
+async def active_portfolio(portfolio_id: Optional[str] = Query(None)) -> dict:
+    """Return the currently active portfolio (issue #4 / FR-046).
+
+    The dashboard stores the active id in localStorage and passes it via the
+    '?portfolio_id=' query. When not set, we fall back to the synthesized
+    'default' portfolio.
+    """
+    try:
+        if portfolio_id:
+            try:
+                pid = uuid.UUID(portfolio_id)
+            except ValueError:
+                raise HTTPException(
+                    status_code=400, detail="portfolio_id must be a UUID"
+                )
+            row = await db.fetchrow(
+                "SELECT portfolio_id, name, base_currency FROM portfolio.portfolios "
+                "WHERE portfolio_id = $1",
+                pid,
+            )
+            if row is None:
+                raise HTTPException(status_code=404, detail="portfolio not found")
+            return {
+                "portfolio_id": str(row["portfolio_id"]),
+                "name": row["name"],
+                "base_currency": row["base_currency"],
+                "source": "query",
+            }
+        # Default: synthesized 'default'.
+        return {
+            "portfolio_id": "default",
+            "name": "Default Portfolio",
+            "base_currency": "TRY",
+            "source": "synthesized",
+        }
+    except HTTPException:
+        raise
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("portfolio.active.error: %s", str(exc))
+        return {
+            "portfolio_id": "default",
+            "name": "Default Portfolio",
+            "base_currency": "TRY",
+            "source": "fallback",
+            "error": str(exc),
+        }
