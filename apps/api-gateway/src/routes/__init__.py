@@ -27,3 +27,4 @@ __all__ = [
     "portfolio",
     "settings",
 ]
+from . import ws_market  # issue #1 / FR-005

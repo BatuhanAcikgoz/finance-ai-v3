@@ -16,6 +16,7 @@ from routes import (
     market,
     portfolio,
     settings,
+    ws_market,  # WebSocket market feed (issue #1 / FR-005)
 )
 from services import decision_loop  # Phase-1 live decision loop (issue #7)
 
@@ -50,10 +51,15 @@ async def lifespan(app: FastAPI):
     loop = decision_loop.get_loop()
     loop.start()
 
+    # Start the WebSocket tick engine (issue #1 / FR-005).
+    tick_engine = ws_market.get_engine()
+    tick_engine.start()
+
     try:
         yield
     finally:
         logger.info("api_gateway.shutdown")
+        await tick_engine.stop()
         await loop.stop()
         await db.close_pool()
         await redis_cache.close_client()
@@ -91,6 +97,7 @@ app.include_router(backtest.router, prefix="/v1/backtest", tags=["Backtest"])
 app.include_router(settings.router, prefix="/v1/settings", tags=["Settings"])
 app.include_router(events.router, prefix="/v1/events", tags=["Events"])
 app.include_router(admin.router, prefix="/v1/admin", tags=["Admin"])
+app.include_router(ws_market.router, prefix="/v1/market", tags=["Market WS"])
 
 
 @app.get("/")
