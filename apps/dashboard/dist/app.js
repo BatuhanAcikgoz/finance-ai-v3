@@ -766,6 +766,7 @@
     refreshAll();
     setInterval(pollHealth, HEALTH_MS);
     setInterval(refreshAll,  REFRESH_MS);
+    if (typeof window !== 'undefined') connectWs();
   }
 
   if (document.readyState === 'loading') {
@@ -1335,4 +1336,47 @@
 
   // Convenience global.
   window.toggleTheme = toggleTheme;
+
+  // ---- WebSocket live tick (issue #1 / FR-005) ------------------------------
+  var _ws = null;
+  var _wsAttempts = 0;
+  function connectWs() {
+    try {
+      var proto = (location.protocol === 'https:') ? 'wss:' : 'ws:';
+      var url = proto + '//' + (location.host || 'localhost:8080') +
+                '/api/v1/market/ws/market';
+      // nginx routes /api/v1/* to the api-gateway, but ws upgrade needs to be
+      // explicitly configured. If the upgrade fails we silently fall back to
+      // the polling loop in refreshAll().
+      _ws = new WebSocket(url);
+      _ws.onmessage = function (ev) {
+        try {
+          var msg = JSON.parse(ev.data);
+          if (msg && msg.ticker && typeof msg.last === 'number') {
+            liveTicks[msg.ticker] = msg;
+            flashTickerCell(msg.ticker);
+          }
+        } catch (e) { /* ignore */ }
+      };
+      _ws.onopen = function () { _wsAttempts = 0; };
+      _ws.onerror = function () { /* let onclose handle retry */ };
+      _ws.onclose = function () {
+        _wsAttempts++;
+        var delay = Math.min(30000, 1000 * Math.pow(2, _wsAttempts));
+        setTimeout(connectWs, delay);
+      };
+    } catch (e) { /* websocket unavailable */ }
+  }
+
+  // Most-recent tick per ticker; merged into the next refreshAll() render.
+  var liveTicks = {};
+  function flashTickerCell(ticker) {
+    try {
+      var cell = document.querySelector('[data-ticker="' + ticker + '"] .live-dot');
+      if (!cell) return;
+      cell.classList.remove('flash');
+      void cell.offsetWidth;  // restart animation
+      cell.classList.add('flash');
+    } catch (e) { /* ignore */ }
+  }
 })();
