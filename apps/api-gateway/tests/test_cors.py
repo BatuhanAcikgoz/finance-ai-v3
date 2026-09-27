@@ -30,6 +30,12 @@ async def test_default_cors_includes_dashboard_and_api_origins():
         "http://127.0.0.1:8000",
         "http://localhost:5173",
         "http://127.0.0.1:5173",
+        # Bare hostnames (no port = browser default). Without these, the
+        # browser's Origin header gets no Access-Control-Allow-Origin back
+        # and the dashboard fails with the classic 'CORS header missing'
+        # console error.
+        "http://localhost",
+        "http://127.0.0.1",
     ]:
         assert required in origins, f"missing {required} in {origins}"
 

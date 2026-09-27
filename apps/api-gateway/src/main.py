@@ -87,7 +87,10 @@ _cors_env = os.environ.get(
     "http://localhost:3000,http://localhost:3001,"
     "http://localhost:8080,http://127.0.0.1:8080,"
     "http://localhost:8000,http://127.0.0.1:8000,"
-    "http://localhost:5173,http://127.0.0.1:5173",
+    "http://localhost:5173,http://127.0.0.1:5173,"
+    "http://localhost,http://127.0.0.1,"
+    "http://0.0.0.0,"
+    "https://localhost:8080",
 )
 ALLOWED_ORIGINS = [o.strip() for o in _cors_env.split(",") if o.strip()]
 app.add_middleware(
