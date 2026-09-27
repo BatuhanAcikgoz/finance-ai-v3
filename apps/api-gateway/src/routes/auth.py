@@ -25,7 +25,7 @@ import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, Response, status
 from pydantic import BaseModel
 
 import bcrypt
@@ -348,6 +348,8 @@ async def me(request: Request,
 
 @router.get("/sessions", response_model=list[SessionInfo])
 async def list_sessions(request: Request,
+                        limit: int = Query(50, ge=1, le=200,
+                                           description="Hard cap; default 50."),
                         sess: dict = Depends(_require_session_strict)):
     cookie_token = request.cookies.get("fasess", "")
     cur_token_hash = _hash_token(cookie_token) if cookie_token else None
@@ -357,8 +359,10 @@ async def list_sessions(request: Request,
         FROM admin.sessions
         WHERE user_id = $1
         ORDER BY last_seen_at DESC
+        LIMIT $2
         """,
         sess["user_id"],
+        limit,
     )
     out = []
     for r in rows:
