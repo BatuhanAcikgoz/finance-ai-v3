@@ -21,40 +21,15 @@
   <meta name="description" content="Kararlar / Decisions — Finance AI V3 karar listesi." />
   <title>Kararlar / Decisions — Finance AI V3</title>
   <link rel="icon" type="image/svg+xml" href="favicon.svg" />
-  <link rel="stylesheet" href="styles.css?v=2026.10.06" />
+  <link rel="stylesheet" href="styles.css?v=2026.10.08" />
 </head>
-<body data-require-session>
+<body data-active-nav="decisions" data-require-session>
   <!-- Animated Apple gradient mesh — fixed, behind everything, non-interactive -->
   <div class="bg-mesh" aria-hidden="true">
     <div class="blob blob-1"></div>
     <div class="blob blob-2"></div>
     <div class="blob blob-3"></div>
   </div>
-
-  <!-- ===== Shared top navigation (Liquid Glass) ===== -->
-  <nav class="app-nav" aria-label="primary">
-    <a class="nav-brand" href="index.html">
-      <span class="nav-brand-mark" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/></svg>
-      </span>
-      Finance AI V3
-    </a>
-    <div class="nav-links">
-        <a href="settings.html">Ayarlar / Settings</a><a href="admin.html" data-admin-link>Yönetim / Admin</a>
-      <a href="index.html">Genel Bakış / Overview</a>
-      <a href="decisions.html" class="is-active">Kararlar / Decisions</a>
-      <a href="portfolio.html">Portföy / Portfolio</a>
-      <a href="alerts.html">Uyarılar / Alerts</a>
-      <a href="system-health.html">Sistem Sağlığı / System Health</a>
-    </div>
-    <div class="nav-right">
-        <button type="button" class="theme-toggle" data-theme-toggle aria-label="Tema değiştir / Toggle theme" aria-pressed="true" title="Karanlık mod / Dark mode (tıklayın → aydınlık)"></button>
-      <span class="refresh-indicator" id="refresh-indicator" aria-live="polite">
-        <span class="spinner" aria-hidden="true"></span>
-        <span class="text">yenileme — 30sn / refresh — 30s</span>
-      </span>
-    </div>
-  </nav>
 
   <main class="container" id="main">
     <!-- ===== Header ===== -->
@@ -130,7 +105,8 @@
   </main>
 
   
-  <script src="ui.js?v=2026.10.06" defer></script>
-  <script src="decisions.js?v=2026.10.06" defer></script>
+  <script src="side-nav.js?v=2026.10.08" defer></script>
+  <script src="ui.js?v=2026.10.08" defer></script>
+  <script src="decisions.js?v=2026.10.08" defer></script>
 </body>
 </html>

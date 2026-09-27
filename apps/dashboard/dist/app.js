@@ -1312,8 +1312,9 @@
   }
 
   // ---- Init on DOMContentLoaded -------------------------------------------
+  // Theme toggling now lives in side-nav.js (own the toggle button); here
+  // we keep tilt + admin link lock.
   function boot() {
-    initThemeToggle();
     initTilt();
     document.querySelectorAll('[data-admin-link]').forEach(function (a) {
       a.classList.toggle('is-locked', !getAdminToken());

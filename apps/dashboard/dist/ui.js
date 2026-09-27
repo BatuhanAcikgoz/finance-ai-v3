@@ -144,5 +144,10 @@
     if (document.body && document.body.dataset && document.body.dataset.requireSession !== undefined) {
       requireSession();
     }
+    // Mount the shared sidebar + topbar if side-nav.js is on the page.
+    // It's a no-op when the script didn't load (e.g. login.html).
+    if (window.FA && window.FA.sideNav && typeof window.FA.sideNav.mount === "function") {
+      try { window.FA.sideNav.mount(); } catch (e) { /* sidebar is decorative, never block page render */ }
+    }
   });
 })();

@@ -6,7 +6,7 @@
   <meta name="description" content="Yönetim / Admin — Finance AI V3 LLM keys, providers, system, audit." />
   <title>Yönetim / Admin — Finance AI V3</title>
   <link rel="icon" type="image/svg+xml" href="favicon.svg" />
-  <link rel="stylesheet" href="styles.css?v=2026.10.06" />
+  <link rel="stylesheet" href="styles.css?v=2026.10.08" />
 
   <script>
     // Pre-paint theme bootstrap — runs before any CSS paints.
@@ -23,7 +23,7 @@
     })();
   </script>
 </head>
-<body data-require-session>
+<body data-active-nav="admin" data-require-session>
   <div class="bg-mesh" aria-hidden="true">
     <div class="blob blob-1"></div>
     <div class="blob blob-2"></div>
@@ -32,32 +32,7 @@
 
   <div class="app">
 
-    <nav class="app-nav" aria-label="primary">
-      <a class="nav-brand" href="index.html">
-        <span class="nav-brand-mark" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/></svg>
-        </span>
-        Finance AI V3
-      </a>
-      <div class="nav-links">
-        <a href="index.html">Genel Bakış / Overview</a>
-        <a href="decisions.html">Kararlar / Decisions</a>
-        <a href="portfolio.html">Portföy / Portfolio</a>
-        <a href="alerts.html">Uyarılar / Alerts</a>
-        <a href="system-health.html">Sistem Sağlığı / System Health</a>
-        <a href="settings.html">Ayarlar / Settings</a>
-        <a href="admin.html" class="is-active" data-admin-link>Yönetim / Admin</a>
-      </div>
-      <div class="nav-right">
-        <button type="button" class="theme-toggle" data-theme-toggle aria-label="Tema değiştir / Toggle theme" aria-pressed="true" title="Karanlık mod / Dark mode (tıklayın → aydınlık)"></button>
-        <span class="refresh-indicator" id="refresh-indicator" aria-live="polite">
-          <span class="spinner" aria-hidden="true"></span>
-          <span class="text" id="refresh-text">idle</span>
-        </span>
-      </div>
-    </nav>
-
-    <main class="container admin-section" id="main">
+        <main class="container admin-section" id="main">
 
       <header class="app-header">
         <div class="brand">
@@ -66,22 +41,6 @@
           <p class="subtitle">LLM anahtarları, sağlayıcılar, sistem durumu ve denetim kaydı / LLM keys, providers, system & audit log</p>
         </div>
       </header>
-
-      <!-- ===== Session bar ===== -->
-      <section class="card glass admin-session">
-        <div class="admin-session-row">
-          <div class="admin-session-id">
-            <span class="admin-session-label">Oturum / Session</span>
-            <strong id="admin-username">—</strong>
-            <span class="admin-session-role" id="admin-role">—</span>
-          </div>
-          <div class="admin-session-actions">
-            <button class="btn" id="admin-refresh" type="button">Yenile / Refresh</button>
-            <button class="btn btn-ghost" id="admin-logout" type="button">Çıkış / Sign out</button>
-          </div>
-        </div>
-        <span class="hint" id="admin-session-expires"></span>
-      </section>
 
       <!-- ===== LLM KEYS ===== -->
       <section class="card glass" aria-labelledby="keys-heading">
@@ -237,7 +196,8 @@
   </div>
 
   
-  <script src="ui.js?v=2026.10.06" defer></script>
-  <script src="admin.js?v=2026.10.06" defer></script>
+  <script src="side-nav.js?v=2026.10.08" defer></script>
+  <script src="ui.js?v=2026.10.08" defer></script>
+  <script src="admin.js?v=2026.10.08" defer></script>
 </body>
 </html>

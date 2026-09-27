@@ -92,37 +92,6 @@
     });
   }
 
-  function bindSessionBar() {
-    var $name = $('#admin-username');
-    var $role = $('#admin-role');
-    var $expires = $('#admin-session-expires');
-    var $logout = $('#admin-logout');
-    var $refresh = $('#admin-refresh');
-
-    function render(me) {
-      if ($name) $name.textContent = me && me.username ? me.username : '—';
-      if ($role) $role.textContent = me && me.role ? me.role : '—';
-      if ($expires) {
-        if (me && me.expires_at) {
-          var d = new Date(me.expires_at);
-          $expires.textContent = 'Oturum sona erer: ' + d.toLocaleString('tr-TR');
-        } else {
-          $expires.textContent = '';
-        }
-      }
-    }
-
-    function load() {
-      window.FA.session.whoami().then(render);
-    }
-    if ($refresh) $refresh.addEventListener('click', load);
-    if ($logout) $logout.addEventListener('click', function () {
-      window.FA.session.signOut();
-    });
-    load();
-  }
-
-
   // -------- LLM KEYS -------------------------------------------------------
   function renderKeysRow(k, idx) {
     var last = fmtTime(k.last_used);
@@ -567,7 +536,6 @@
   }
 
   function boot() {
-    bindSessionBar();
     bindKeysControls();
     bindRefreshButtons();
     refreshAll();
