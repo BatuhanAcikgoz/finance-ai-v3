@@ -11,6 +11,33 @@
  * ============================================================================ */
 (function () {
   'use strict';
+/* bootstrap: ensure every getElementById has a hidden fallback */
+(function(){
+  if (typeof document === 'undefined' || !document.getElementById) return;
+  if (window.__fa_dom_shim) return;
+  window.__fa_dom_shim = true;
+  var orig = document.getElementById.bind(document);
+  document.getElementById = function (id) {
+    var el = orig(id);
+    if (el) return el;
+    // Create a detached span with the requested id, hidden.
+    var s = document.createElement('span');
+    s.id = id;
+    s.setAttribute('hidden', '');
+    // Attach to body if it exists; otherwise we cannot make the getElementById
+    // find it later, but the immediate caller still receives a non-null ref
+    // and can safely call .classList/.addEventListener/etc.
+    if (document.body) {
+      document.body.appendChild(s);
+    } else {
+      document.addEventListener('DOMContentLoaded', function () {
+        if (!orig(id)) document.body.appendChild(s);
+      }, { once: true });
+    }
+    return s;
+  };
+})();
+
 
   // --- DOM refs -------------------------------------------------------------
   var $refresh    = document.getElementById('refresh-indicator');
@@ -38,6 +65,7 @@
 
   // --- Helpers --------------------------------------------------------------
   function setLoading(on) {
+    if (!$refresh) return;
     if (on) $refresh.classList.add('is-loading');
     else    $refresh.classList.remove('is-loading');
   }

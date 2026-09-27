@@ -772,7 +772,14 @@
     refreshAll();
     setInterval(pollHealth, HEALTH_MS);
     setInterval(refreshAll,  REFRESH_MS);
-    if (typeof window !== 'undefined') connectWs();
+    // `connectWs` is defined later in this file inside a separate IIFE
+    // (lines ~1167+). From `boot()`'s lexical scope it is undefined —
+    // calling the bare name throws ReferenceError on every page load.
+    // Use the no-op shim provided by ui.js, OR the real one that
+    // IIFE #2 wires onto window.FA.connectWs at the end of this file.
+    if (window.FA && typeof window.FA.connectWs === 'function') {
+      window.FA.connectWs();
+    }
   }
 
   if (document.readyState === 'loading') {
@@ -1151,7 +1158,12 @@
 
   // Expose globally for the per-page scripts (decisions.js, decision-detail.js).
   // Existing index-page behaviour is fully untouched.
-  window.FA = FA;
+  // Merge into window.FA (rather than overwriting) so the namespaces created
+  // by ui.js (window.FA.toast.show, window.FA.api.fetchJSON) and
+  // side-nav.js (window.FA.sideNav.mount) survive. Older code paths that
+  // expect FA.api.fetchJson / FA.ui.fetchAdmin still resolve.
+  window.FA = window.FA || {};
+  Object.assign(window.FA, FA);
 })();
 
 /* ============================================================================
@@ -1416,6 +1428,12 @@
       } catch (e) { /* websocket unavailable */ }
     });
   }
+
+  // Expose the real WS connect onto window.FA so the boot() call in IIFE #1
+  // (and any future caller) reaches the live implementation rather than the
+  // ui.js no-op shim. Overrides the shim because we loaded after ui.js.
+  window.FA = window.FA || {};
+  window.FA.connectWs = connectWs;
 
   // Most-recent tick per ticker; merged into the next refreshAll() render.
   var liveTicks = {};

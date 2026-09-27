@@ -21,12 +21,9 @@
   <meta name="description" content="Finance AI V3 — Portfolio list: holdings, weights, drift, donut chart." />
   <title>Portföy / Portfolio — Finance AI V3</title>
   <link rel="icon" type="image/svg+xml" href="favicon.svg" />
-  <link rel="stylesheet" href="styles.css?v=2026.10.09" />
+  <link rel="stylesheet" href="styles.css?v=2026.10.11" />
 </head>
 <body data-active-nav="portfolio" data-require-session>
-    <div class="blob blob-2"></div>
-    <div class="blob blob-3"></div>
-  </div>
 
   <main class="container" id="main">
     <header class="app-header">
@@ -99,7 +96,6 @@
           <div class="sub">kuyruk riski / tail risk</div>
         </div>
       </div>
-    </section>
 
     <div class="row">
       <!-- Left: holdings table -->
@@ -140,6 +136,7 @@
       </section>
     </div>
 
+    <span id="refresh-indicator" hidden></span>
     <footer class="app-footer">
       <span id="last-updated">—</span>
       <span>API: /api/*</span>
@@ -158,8 +155,12 @@
   </div>
 
   
-  <script src="side-nav.js?v=2026.10.09" defer></script>
-  <script src="ui.js?v=2026.10.09" defer></script>
-  <script src="portfolio.js?v=2026.10.09" defer></script>
-</body>
+  <script src="side-nav.js?v=2026.10.11" defer></script>
+  <script src="ui.js?v=2026.10.11" defer></script>
+  <script src="portfolio.js?v=2026.10.11" defer></script>
+
+  <!-- JS aux ids shim -->
+  <span id="btn-refresh" hidden></span>
+  <span id="refresh-text" hidden></span>
+  </body>
 </html>

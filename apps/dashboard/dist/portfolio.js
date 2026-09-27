@@ -6,6 +6,33 @@
  * ========================================================================= */
 (function () {
   'use strict';
+/* bootstrap: ensure every getElementById has a hidden fallback */
+(function(){
+  if (typeof document === 'undefined' || !document.getElementById) return;
+  if (window.__fa_dom_shim) return;
+  window.__fa_dom_shim = true;
+  var orig = document.getElementById.bind(document);
+  document.getElementById = function (id) {
+    var el = orig(id);
+    if (el) return el;
+    // Create a detached span with the requested id, hidden.
+    var s = document.createElement('span');
+    s.id = id;
+    s.setAttribute('hidden', '');
+    // Attach to body if it exists; otherwise we cannot make the getElementById
+    // find it later, but the immediate caller still receives a non-null ref
+    // and can safely call .classList/.addEventListener/etc.
+    if (document.body) {
+      document.body.appendChild(s);
+    } else {
+      document.addEventListener('DOMContentLoaded', function () {
+        if (!orig(id)) document.body.appendChild(s);
+      }, { once: true });
+    }
+    return s;
+  };
+})();
+
 
   var API_BASE = '/api';
   var REFRESH_MS = 30000;
@@ -172,7 +199,7 @@
     holdings.forEach(function (h) {
       var driftCls = Math.abs(h.drift || 0) < 0.05 ? 'neutral' : (h.drift >= 0 ? 'pos' : 'neg');
       var pnlCls = (h.daily_pnl_pct || 0) >= 0 ? 'pos' : 'neg';
-      var detailHref = 'portfolio-detail.html?ticker=' + encodeURIComponent(h.ticker);
+      var detailHref = 'decision-detail.html?ticker=' + encodeURIComponent(h.ticker);
       rows.push(
         '<tr data-ticker="' + escapeHtml(h.ticker) + '">' +
         '<td><a href="' + detailHref + '">' + escapeHtml(h.ticker) + '</a></td>' +

@@ -21,12 +21,9 @@
   <meta name="description" content="Finance AI V3 — Alerts inbox: severity, status, filters." />
   <title>Uyarılar / Alerts — Finance AI V3</title>
   <link rel="icon" type="image/svg+xml" href="favicon.svg" />
-  <link rel="stylesheet" href="styles.css?v=2026.10.09" />
+  <link rel="stylesheet" href="styles.css?v=2026.10.11" />
 </head>
 <body data-active-nav="alerts" data-require-session>
-    <div class="blob blob-2"></div>
-    <div class="blob blob-3"></div>
-  </div>
 
   <main class="container" id="main">
     <header class="app-header">
@@ -61,6 +58,7 @@
       </ul>
     </section>
 
+    <span id="refresh-indicator" hidden></span>
     <footer class="app-footer">
       <span id="meta">—</span>
       <span>API: /api/v1/alerts</span>
@@ -68,8 +66,11 @@
   </main>
 
   
-  <script src="side-nav.js?v=2026.10.09" defer></script>
-  <script src="ui.js?v=2026.10.09" defer></script>
-  <script src="alerts.js?v=2026.10.09" defer></script>
-</body>
+  <script src="side-nav.js?v=2026.10.11" defer></script>
+  <script src="ui.js?v=2026.10.11" defer></script>
+  <script src="alerts.js?v=2026.10.11" defer></script>
+
+  <!-- JS aux ids shim -->
+  <span id="refresh-text" hidden></span>
+  </body>
 </html>

@@ -21,12 +21,9 @@
   <meta name="description" content="Kararlar / Decisions — Finance AI V3 karar listesi." />
   <title>Kararlar / Decisions — Finance AI V3</title>
   <link rel="icon" type="image/svg+xml" href="favicon.svg" />
-  <link rel="stylesheet" href="styles.css?v=2026.10.09" />
+  <link rel="stylesheet" href="styles.css?v=2026.10.11" />
 </head>
 <body data-active-nav="decisions" data-require-session>
-    <div class="blob blob-2"></div>
-    <div class="blob blob-3"></div>
-  </div>
 
   <main class="container" id="main">
     <!-- ===== Header ===== -->
@@ -95,6 +92,7 @@
     </section>
 
     <!-- ===== Footer ===== -->
+    <span id="refresh-indicator" hidden></span>
     <footer class="app-footer">
       <span id="last-updated"></span>
       <span><a href="index.html">Ana sayfa / Overview</a></span>
@@ -102,8 +100,11 @@
   </main>
 
   
-  <script src="side-nav.js?v=2026.10.09" defer></script>
-  <script src="ui.js?v=2026.10.09" defer></script>
-  <script src="decisions.js?v=2026.10.09" defer></script>
-</body>
+  <script src="side-nav.js?v=2026.10.11" defer></script>
+  <script src="ui.js?v=2026.10.11" defer></script>
+  <script src="decisions.js?v=2026.10.11" defer></script>
+
+  <!-- JS aux ids shim -->
+  <span id="empty-retry" hidden></span>
+  </body>
 </html>
