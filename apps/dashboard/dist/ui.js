@@ -17,8 +17,18 @@
 (() => {
   "use strict";
 
-  const API_BASE = "/api/v1";
-  const LOGIN_URL = "/login.html";
+  // Always resolve the API base against the *current* document origin.
+  // Using a hard-coded '/api/v1' relative path collides when the page
+  // is reached through a different port (e.g. http://127.0.0.1:80/foo
+  // vs http://127.0.0.1:8080/foo) or via a hostname proxy — the
+  // browser would otherwise re-resolve the path against an unwanted
+  // origin and trigger CORS / 127.0.0.1 (no port) surprises.
+  const API_BASE = (typeof window !== "undefined" && window.location
+                    ? window.location.origin + "/api/v1"
+                    : "/api/v1");
+  const LOGIN_URL = (typeof window !== "undefined" && window.location
+                    ? window.location.origin + "/login.html"
+                    : "/login.html");
 
   async function whoami() {
     try {
