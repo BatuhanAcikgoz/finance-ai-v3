@@ -62,7 +62,7 @@ async def test_list_portfolios_returns_rows(client, monkeypatch):
     monkeypatch.setattr(db, "fetch", make_async_return(canned))
     monkeypatch.setattr(db, "is_available", make_async_return(True))
 
-    r = await client.get("/v1/portfolio/")
+    r = await client.get("/api/v1/portfolio/")
     assert r.status_code == 200
     body = r.json()
     assert body["count"] == 1
@@ -74,7 +74,7 @@ async def test_list_portfolios_synthesizes_default_when_empty(client, monkeypatc
     monkeypatch.setattr(db, "fetch", make_async_return([]))
     monkeypatch.setattr(db, "is_available", make_async_return(True))
 
-    r = await client.get("/v1/portfolio/")
+    r = await client.get("/api/v1/portfolio/")
     assert r.status_code == 200
     body = r.json()
     assert body["count"] == 1
@@ -125,7 +125,7 @@ async def test_get_portfolio_state_aggregates(client, monkeypatch):
     monkeypatch.setattr(db, "fetch", make_async_return(holdings))
     monkeypatch.setattr(db, "is_available", make_async_return(True))
 
-    r = await client.get(f"/v1/portfolio/{PORTFOLIO_UUID}/state")
+    r = await client.get(f"/api/v1/portfolio/{PORTFOLIO_UUID}/state")
     assert r.status_code == 200
     body = r.json()
     assert body["total_value_try"] == 11000.0
@@ -168,7 +168,7 @@ async def test_get_holding_returns_decisions_and_risk(client, monkeypatch):
     monkeypatch.setattr(db, "fetch", make_async_return(decision_rows))
     monkeypatch.setattr(db, "is_available", make_async_return(True))
 
-    r = await client.get(f"/v1/portfolio/{PORTFOLIO_UUID}/holdings/THYAO")
+    r = await client.get(f"/api/v1/portfolio/{PORTFOLIO_UUID}/holdings/THYAO")
     assert r.status_code == 200
     body = r.json()
     assert body["holding"]["ticker"] == "THYAO"

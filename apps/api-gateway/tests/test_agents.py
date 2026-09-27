@@ -42,7 +42,7 @@ async def test_list_agents_returns_known_agents(client, monkeypatch):
         return []  # other containers have no logs / docker not running
 
     monkeypatch.setattr(agents_module, "_tail_container_logs", fake_tail)
-    r = await client.get("/v1/agents/")
+    r = await client.get("/api/v1/agents/")
     assert r.status_code == 200
     body = r.json()
     names = {a["name"] for a in body["items"]}
@@ -70,7 +70,7 @@ async def test_list_agent_calls_parses_structlog(client, monkeypatch):
     monkeypatch.setattr(agents_module, "_tail_container_logs",
                         lambda container, lines=500: canned_lines)
 
-    r = await client.get("/v1/agents/technical_analysis/calls?since=24h")
+    r = await client.get("/api/v1/agents/technical_analysis/calls?since=24h")
     assert r.status_code == 200
     body = r.json()
     assert body["count"] == 2

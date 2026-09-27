@@ -58,6 +58,11 @@ COPY --from=deps --chown=app:app /app/scripts /app/scripts
 # Drop in real api-gateway source (overwrites the stub we created in deps stage).
 COPY --chown=app:app apps/api-gateway/src/ /app/apps/api-gateway/src/
 
+# Bundle the dashboard static files so FastAPI can serve them directly from
+# /app/apps/dashboard/dist (no nginx needed). The /v1/* and /api/* routers
+# sit above this mount, so they always win on those paths.
+COPY --chown=app:app apps/dashboard/dist /app/apps/dashboard/dist
+
 USER app
 
 EXPOSE 8000

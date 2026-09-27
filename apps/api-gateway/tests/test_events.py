@@ -58,7 +58,7 @@ async def test_events_merges_decisions_alerts_and_ticks(client, monkeypatch):
 
     monkeypatch.setattr(db, "fetch", fake_fetch)
 
-    r = await client.get("/v1/events/?limit=50")
+    r = await client.get("/api/v1/events/?limit=50")
     assert r.status_code == 200
     body = r.json()
     types = {it["type"] for it in body["items"]}

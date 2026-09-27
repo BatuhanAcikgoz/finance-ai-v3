@@ -53,7 +53,7 @@ async def test_symbols_returns_list(client, monkeypatch):
     monkeypatch.setattr(db, "fetch", make_async_return(canned))
     monkeypatch.setattr(db, "is_available", make_async_return(True))
 
-    r = await client.get("/v1/market/symbols")
+    r = await client.get("/api/v1/market/symbols")
     assert r.status_code == 200
     body = r.json()
     assert body["count"] == 2
@@ -64,7 +64,7 @@ async def test_symbols_degraded_when_db_down(client, monkeypatch):
     monkeypatch.setattr(db, "fetch", make_async_return([]))
     monkeypatch.setattr(db, "is_available", make_async_return(False))
 
-    r = await client.get("/v1/market/symbols")
+    r = await client.get("/api/v1/market/symbols")
     assert r.status_code == 200
     body = r.json()
     assert body["count"] == 0
@@ -85,7 +85,7 @@ async def test_ohlcv_returns_bars_desc(client, monkeypatch):
     monkeypatch.setattr(db, "fetch", make_async_return(canned))
     monkeypatch.setattr(db, "is_available", make_async_return(True))
 
-    r = await client.get("/v1/market/ohlcv/THYAO")
+    r = await client.get("/api/v1/market/ohlcv/THYAO")
     assert r.status_code == 200
     body = r.json()
     assert body["symbol"] == "THYAO"
@@ -96,7 +96,7 @@ async def test_ohlcv_returns_bars_desc(client, monkeypatch):
 async def test_ohlcv_404_when_empty(client, monkeypatch):
     monkeypatch.setattr(db, "fetch", make_async_return([]))
     monkeypatch.setattr(db, "is_available", make_async_return(True))
-    r = await client.get("/v1/market/ohlcv/MISSING")
+    r = await client.get("/api/v1/market/ohlcv/MISSING")
     assert r.status_code == 404
 
 
@@ -107,7 +107,7 @@ async def test_quote_returns_change_pct(client, monkeypatch):
     monkeypatch.setattr(db, "fetchrow", make_async_iter([latest, prev]))
     monkeypatch.setattr(db, "is_available", make_async_return(True))
 
-    r = await client.get("/v1/market/quote/THYAO")
+    r = await client.get("/api/v1/market/quote/THYAO")
     assert r.status_code == 200
     body = r.json()
     assert body["price"] == 110.0
@@ -128,7 +128,7 @@ async def test_market_decisions_alias(client, monkeypatch):
     monkeypatch.setattr(db, "fetch", make_async_return(canned))
     monkeypatch.setattr(db, "is_available", make_async_return(True))
 
-    r = await client.get("/v1/market/decisions")
+    r = await client.get("/api/v1/market/decisions")
     assert r.status_code == 200
     body = r.json()
     assert body["count"] == 1
@@ -136,6 +136,6 @@ async def test_market_decisions_alias(client, monkeypatch):
 
 
 async def test_indices_list(client):
-    r = await client.get("/v1/market/indices")
+    r = await client.get("/api/v1/market/indices")
     assert r.status_code == 200
     assert "XU100" in r.json()["indices"]

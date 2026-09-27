@@ -235,7 +235,7 @@ async def auth_client(monkeypatch):
 async def auth_client_logged_in(auth_client):
     """Auth client with a session already established."""
     login = await auth_client.post(
-        "/v1/auth/login",
+        "/api/v1/auth/login",
         json={"username": "admin", "password": "admin"},
     )
     assert login.status_code == 200
@@ -249,7 +249,7 @@ async def auth_client_logged_in(auth_client):
 @pytest.mark.asyncio
 async def test_login_success_sets_cookie(auth_client):
     r = await auth_client.post(
-        "/v1/auth/login",
+        "/api/v1/auth/login",
         json={"username": "admin", "password": "admin"},
     )
     assert r.status_code == 200
@@ -265,7 +265,7 @@ async def test_login_success_sets_cookie(auth_client):
 @pytest.mark.asyncio
 async def test_login_wrong_password_returns_401(auth_client):
     r = await auth_client.post(
-        "/v1/auth/login",
+        "/api/v1/auth/login",
         json={"username": "admin", "password": "wrong"},
     )
     assert r.status_code == 401
@@ -275,7 +275,7 @@ async def test_login_wrong_password_returns_401(auth_client):
 @pytest.mark.asyncio
 async def test_login_unknown_user_returns_401(auth_client):
     r = await auth_client.post(
-        "/v1/auth/login",
+        "/api/v1/auth/login",
         json={"username": "ghost", "password": "whatever"},
     )
     assert r.status_code == 401
@@ -283,18 +283,18 @@ async def test_login_unknown_user_returns_401(auth_client):
 
 @pytest.mark.asyncio
 async def test_me_requires_session(auth_client):
-    r = await auth_client.get("/v1/auth/me")
+    r = await auth_client.get("/api/v1/auth/me")
     assert r.status_code == 401
 
 
 @pytest.mark.asyncio
 async def test_me_with_cookie_returns_identity(auth_client):
     login = await auth_client.post(
-        "/v1/auth/login",
+        "/api/v1/auth/login",
         json={"username": "admin", "password": "admin"},
     )
     assert login.status_code == 200
-    me = await auth_client.get("/v1/auth/me")
+    me = await auth_client.get("/api/v1/auth/me")
     assert me.status_code == 200
     body = me.json()
     assert body["username"] == "admin"
@@ -305,12 +305,12 @@ async def test_me_with_cookie_returns_identity(auth_client):
 @pytest.mark.asyncio
 async def test_me_with_bearer_token_works(auth_client):
     login = await auth_client.post(
-        "/v1/auth/login",
+        "/api/v1/auth/login",
         json={"username": "admin", "password": "admin"},
     )
     token = login.json()["access_token"]
     r = await auth_client.get(
-        "/v1/auth/me",
+        "/api/v1/auth/me",
         headers={"Authorization": f"Bearer {token}"},
     )
     assert r.status_code == 200
@@ -325,7 +325,7 @@ async def test_logout_invalidates_session(auth_client):
     # second login's cookie win on every later request, which is fine
     # for the real browser flow but unhelpful for unit tests).
     r1 = await auth_client.post(
-        "/v1/auth/login",
+        "/api/v1/auth/login",
         json={"username": "admin", "password": "admin"},
     )
     token1 = r1.json()["access_token"]
@@ -333,7 +333,7 @@ async def test_logout_invalidates_session(auth_client):
     # gets a fresh, untangled cookie jar.
     auth_client.cookies.clear()
     r2 = await auth_client.post(
-        "/v1/auth/login",
+        "/api/v1/auth/login",
         json={"username": "admin", "password": "admin"},
     )
     token2 = r2.json()["access_token"]
@@ -341,18 +341,18 @@ async def test_logout_invalidates_session(auth_client):
     assert token1 != token2
 
     out = await auth_client.post(
-        "/v1/auth/logout",
+        "/api/v1/auth/logout",
         headers={"Authorization": f"Bearer {token1}"},
     )
     assert out.status_code == 204
     # First token now invalid; second still works.
     me1 = await auth_client.get(
-        "/v1/auth/me",
+        "/api/v1/auth/me",
         headers={"Authorization": f"Bearer {token1}"},
     )
     assert me1.status_code == 401
     me2 = await auth_client.get(
-        "/v1/auth/me",
+        "/api/v1/auth/me",
         headers={"Authorization": f"Bearer {token2}"},
     )
     assert me2.status_code == 200
@@ -363,19 +363,19 @@ async def test_logout_all_kills_every_session(auth_client):
     # Two separate logins (cookies are scoped to AsyncClient, so simulate
     # by clearing the cookie between logins).
     r1 = await auth_client.post(
-        "/v1/auth/login",
+        "/api/v1/auth/login",
         json={"username": "admin", "password": "admin"},
     )
     token1 = r1.json()["access_token"]
     r2 = await auth_client.post(
-        "/v1/auth/login",
+        "/api/v1/auth/login",
         json={"username": "admin", "password": "admin"},
     )
     token2 = r2.json()["access_token"]
     assert token1 != token2
 
     out = await auth_client.post(
-        "/v1/auth/logout-all",
+        "/api/v1/auth/logout-all",
         headers={"Authorization": f"Bearer {token1}"},
     )
     assert out.status_code == 204
@@ -383,7 +383,7 @@ async def test_logout_all_kills_every_session(auth_client):
     # Both tokens should now be invalid.
     for tok in (token1, token2):
         me = await auth_client.get(
-            "/v1/auth/me",
+            "/api/v1/auth/me",
             headers={"Authorization": f"Bearer {tok}"},
         )
         assert me.status_code == 401
@@ -392,12 +392,12 @@ async def test_logout_all_kills_every_session(auth_client):
 @pytest.mark.asyncio
 async def test_sessions_lists_active(auth_client):
     r1 = await auth_client.post(
-        "/v1/auth/login",
+        "/api/v1/auth/login",
         json={"username": "admin", "password": "admin"},
     )
     token = r1.json()["access_token"]
     r = await auth_client.get(
-        "/v1/auth/sessions",
+        "/api/v1/auth/sessions",
         headers={"Authorization": f"Bearer {token}"},
     )
     assert r.status_code == 200
@@ -410,25 +410,25 @@ async def test_sessions_lists_active(auth_client):
 @pytest.mark.asyncio
 async def test_change_password_invalidates_all_sessions(auth_client):
     r1 = await auth_client.post(
-        "/v1/auth/login",
+        "/api/v1/auth/login",
         json={"username": "admin", "password": "admin"},
     )
     token = r1.json()["access_token"]
     out = await auth_client.post(
-        "/v1/auth/change-password",
+        "/api/v1/auth/change-password",
         json={"current_password": "admin", "new_password": "newpw123"},
         headers={"Authorization": f"Bearer {token}"},
     )
     assert out.status_code == 204
     # Old token should be invalidated.
     me = await auth_client.get(
-        "/v1/auth/me",
+        "/api/v1/auth/me",
         headers={"Authorization": f"Bearer {token}"},
     )
     assert me.status_code == 401
     # New password should now work.
     r2 = await auth_client.post(
-        "/v1/auth/login",
+        "/api/v1/auth/login",
         json={"username": "admin", "password": "newpw123"},
     )
     assert r2.status_code == 200
@@ -439,12 +439,12 @@ async def test_change_password_invalidates_all_sessions(auth_client):
 @pytest.mark.asyncio
 async def test_change_password_wrong_current_returns_401(auth_client):
     r1 = await auth_client.post(
-        "/v1/auth/login",
+        "/api/v1/auth/login",
         json={"username": "admin", "password": "admin"},
     )
     token = r1.json()["access_token"]
     out = await auth_client.post(
-        "/v1/auth/change-password",
+        "/api/v1/auth/change-password",
         json={"current_password": "WRONG", "new_password": "newpw123"},
         headers={"Authorization": f"Bearer {token}"},
     )
@@ -454,12 +454,12 @@ async def test_change_password_wrong_current_returns_401(auth_client):
 @pytest.mark.asyncio
 async def test_change_password_too_short_returns_400(auth_client):
     r1 = await auth_client.post(
-        "/v1/auth/login",
+        "/api/v1/auth/login",
         json={"username": "admin", "password": "admin"},
     )
     token = r1.json()["access_token"]
     out = await auth_client.post(
-        "/v1/auth/change-password",
+        "/api/v1/auth/change-password",
         json={"current_password": "admin", "new_password": "abc"},
         headers={"Authorization": f"Bearer {token}"},
     )
@@ -470,7 +470,7 @@ async def test_change_password_too_short_returns_400(auth_client):
 async def test_session_expiry_rejected(auth_client):
     # Manually expire the session row.
     login = await auth_client.post(
-        "/v1/auth/login",
+        "/api/v1/auth/login",
         json={"username": "admin", "password": "admin"},
     )
     token = login.json()["access_token"]
@@ -478,7 +478,7 @@ async def test_session_expiry_rejected(auth_client):
     for s in _DB.sessions.values():
         s["expires_at"] = datetime.now(timezone.utc) - timedelta(days=1)
     me = await auth_client.get(
-        "/v1/auth/me",
+        "/api/v1/auth/me",
         headers={"Authorization": f"Bearer {token}"},
     )
     assert me.status_code == 401
@@ -488,7 +488,7 @@ async def test_session_expiry_rejected(auth_client):
 async def test_disabled_user_cannot_login(auth_client):
     _DB.users["admin"]["disabled_at"] = datetime.now(timezone.utc)
     r = await auth_client.post(
-        "/v1/auth/login",
+        "/api/v1/auth/login",
         json={"username": "admin", "password": "admin"},
     )
     assert r.status_code == 403

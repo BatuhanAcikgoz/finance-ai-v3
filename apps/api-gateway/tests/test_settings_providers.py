@@ -94,7 +94,7 @@ def fake_redis(monkeypatch):
 @pytest.mark.asyncio
 async def test_get_settings_includes_providers(fake_redis):
     async with AsyncClient(transport=ASGITransport(app=main_module.app), base_url="http://test", follow_redirects=True) as ac:
-        r = await ac.get("/v1/settings")
+        r = await ac.get("/api/v1/settings")
     assert r.status_code == 200
     body = r.json()
     assert "providers" in body
@@ -110,7 +110,7 @@ async def test_patch_provider_swaps_to_default_model(fake_redis):
     """Switching only the provider must auto-fill its default model —
     prevents ending up with provider=anthropic + model=gpt-4o."""
     async with AsyncClient(transport=ASGITransport(app=main_module.app), base_url="http://test", follow_redirects=True) as ac:
-        r = await ac.patch("/v1/settings", json={"llm": {"provider": "anthropic"}})
+        r = await ac.patch("/api/v1/settings", json={"llm": {"provider": "anthropic"}})
     assert r.status_code == 200, r.text
     body = r.json()
     assert body["llm"]["provider"] == "anthropic"
@@ -121,7 +121,7 @@ async def test_patch_provider_swaps_to_default_model(fake_redis):
 @pytest.mark.asyncio
 async def test_patch_unknown_provider_returns_400(fake_redis):
     async with AsyncClient(transport=ASGITransport(app=main_module.app), base_url="http://test", follow_redirects=True) as ac:
-        r = await ac.patch("/v1/settings", json={"llm": {"provider": "made-up-llm"}})
+        r = await ac.patch("/api/v1/settings", json={"llm": {"provider": "made-up-llm"}})
     assert r.status_code == 400, r.text
     body = r.json()
     assert body["error"] == "unknown_provider"
@@ -132,7 +132,7 @@ async def test_patch_unknown_provider_returns_400(fake_redis):
 async def test_patch_model_only_does_not_clobber_provider(fake_redis):
     """Setting only the model must NOT override the active provider."""
     async with AsyncClient(transport=ASGITransport(app=main_module.app), base_url="http://test", follow_redirects=True) as ac:
-        r = await ac.patch("/v1/settings", json={"llm": {"model": "minimax-m2"}})
+        r = await ac.patch("/api/v1/settings", json={"llm": {"model": "minimax-m2"}})
     assert r.status_code == 200, r.text
     body = r.json()
     assert body["llm"]["provider"] == "minimax"
@@ -142,7 +142,7 @@ async def test_patch_model_only_does_not_clobber_provider(fake_redis):
 @pytest.mark.asyncio
 async def test_providers_endpoint_only(fake_redis):
     async with AsyncClient(transport=ASGITransport(app=main_module.app), base_url="http://test", follow_redirects=True) as ac:
-        r = await ac.get("/v1/settings/providers")
+        r = await ac.get("/api/v1/settings/providers")
     assert r.status_code == 200
     body = r.json()
     assert "providers" in body

@@ -55,7 +55,7 @@ async def test_list_backtests_returns_runs(client, monkeypatch):
     monkeypatch.setattr(db, "fetch", make_async_return(canned))
     monkeypatch.setattr(db, "is_available", make_async_return(True))
 
-    r = await client.get("/v1/backtest/")
+    r = await client.get("/api/v1/backtest/")
     assert r.status_code == 200
     body = r.json()
     assert body["count"] == 1
@@ -79,7 +79,7 @@ async def test_run_backtest_inserts_queued_row(client, monkeypatch):
     monkeypatch.setattr(db, "execute", fake_execute)
     monkeypatch.setattr(db, "is_available", make_async_return(True))
 
-    r = await client.post("/v1/backtest/run", json={"scope": {"universe": "BIST30"}})
+    r = await client.post("/api/v1/backtest/run", json={"scope": {"universe": "BIST30"}})
     assert r.status_code == 201
     body = r.json()
     assert body["status"] == "queued"
@@ -105,7 +105,7 @@ async def test_approve_backtest_marks_approved(client, monkeypatch):
     monkeypatch.setattr(db, "execute", fake_execute)
     monkeypatch.setattr(db, "is_available", make_async_return(True))
 
-    r = await client.post(f"/v1/backtest/{RUN_UUID}/approve")
+    r = await client.post(f"/api/v1/backtest/{RUN_UUID}/approve")
     assert r.status_code == 200
     body = r.json()
     assert body["status"] == "approved"

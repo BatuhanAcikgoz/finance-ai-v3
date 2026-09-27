@@ -213,7 +213,7 @@ async def client(fake_db, monkeypatch):
 
 
 async def test_list_keys_returns_empty_initially(client):
-    r = await client.get("/v1/admin/llm/keys", headers=HEADERS)
+    r = await client.get("/api/v1/admin/llm/keys", headers=HEADERS)
     assert r.status_code == 200
     body = r.json()
     assert body == {"items": [], "count": 0}
@@ -221,7 +221,7 @@ async def test_list_keys_returns_empty_initially(client):
 
 async def test_post_key_returns_201_and_masked_key(client):
     r = await client.post(
-        "/v1/admin/llm/keys",
+        "/api/v1/admin/llm/keys",
         headers=HEADERS,
         json={
             "provider": "openai",
@@ -245,7 +245,7 @@ async def test_post_key_returns_201_and_masked_key(client):
 
 async def test_patch_key_updates_label(client):
     create = await client.post(
-        "/v1/admin/llm/keys",
+        "/api/v1/admin/llm/keys",
         headers=HEADERS,
         json={
             "provider": "minimax",
@@ -258,7 +258,7 @@ async def test_patch_key_updates_label(client):
     key_id = create.json()["key_id"]
 
     patch_resp = await client.patch(
-        f"/v1/admin/llm/keys/{key_id}",
+        f"/api/v1/admin/llm/keys/{key_id}",
         headers=HEADERS,
         json={"label": "after"},
     )
@@ -271,7 +271,7 @@ async def test_patch_key_updates_label(client):
 
 async def test_delete_key_removes_it(client):
     create = await client.post(
-        "/v1/admin/llm/keys",
+        "/api/v1/admin/llm/keys",
         headers=HEADERS,
         json={
             "provider": "anthropic",
@@ -284,17 +284,17 @@ async def test_delete_key_removes_it(client):
     key_id = create.json()["key_id"]
 
     delete = await client.delete(
-        f"/v1/admin/llm/keys/{key_id}", headers=HEADERS,
+        f"/api/v1/admin/llm/keys/{key_id}", headers=HEADERS,
     )
     assert delete.status_code == 204, delete.text
 
-    listing = await client.get("/v1/admin/llm/keys", headers=HEADERS)
+    listing = await client.get("/api/v1/admin/llm/keys", headers=HEADERS)
     assert listing.status_code == 200
     assert listing.json() == {"items": [], "count": 0}
 
 
 async def test_providers_returns_six_entries(client):
-    r = await client.get("/v1/admin/llm/providers", headers=HEADERS)
+    r = await client.get("/api/v1/admin/llm/providers", headers=HEADERS)
     assert r.status_code == 200
     body = r.json()
     assert body["count"] == 6
@@ -309,19 +309,19 @@ async def test_providers_returns_six_entries(client):
 
 async def test_missing_admin_token_returns_401(client):
     # No header at all → 401.
-    r = await client.get("/v1/admin/llm/keys")
+    r = await client.get("/api/v1/admin/llm/keys")
     assert r.status_code == 401
     # Wrong header → 401.
     r = await client.get(
-        "/v1/admin/llm/keys",
+        "/api/v1/admin/llm/keys",
         headers={"X-Admin-Token": "not-the-right-token"},
     )
     assert r.status_code == 401
     # Every admin endpoint should be guarded.
     for path in (
-        "/v1/admin/llm/providers",
-        "/v1/admin/system",
-        "/v1/admin/audit-log",
+        "/api/v1/admin/llm/providers",
+        "/api/v1/admin/system",
+        "/api/v1/admin/audit-log",
     ):
         r = await client.get(path)
         assert r.status_code == 401, f"{path} allowed unauthenticated access"

@@ -25,7 +25,7 @@ async def test_get_settings_returns_defaults(client, monkeypatch):
     monkeypatch.setattr(settings_module.redis_cache, "get_json", fake_get_json)
     monkeypatch.setattr(settings_module.redis_cache, "set_json", fake_set_json)
 
-    r = await client.get("/v1/settings/")
+    r = await client.get("/api/v1/settings/")
     assert r.status_code == 200
     body = r.json()
     assert body["user"] == "dev"
@@ -52,7 +52,7 @@ async def test_patch_settings_merges_and_persists(client, monkeypatch):
     monkeypatch.setattr(settings_module.redis_cache, "set_json", fake_set_json)
 
     r = await client.patch(
-        "/v1/settings/",
+        "/api/v1/settings/",
         json={
             "risk": {"max_position_pct": 0.07},
             "llm": {"model": "gpt-4o-mini", "monthly_budget_usd": 250},

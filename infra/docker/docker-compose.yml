@@ -236,7 +236,11 @@ services:
       LITELLM_HOST: litellm
       LITELLM_PORT: 4000
     ports:
+      # 8000 = direct uvicorn access for /docs and /health probes
+      # 8080 = end-user access (browser hits /admin.html + /api/v1/* here,
+      #         same origin → no CORS layer needed).
       - "8000:8000"
+      - "8080:8000"
     depends_on:
       postgres:
         condition: service_healthy
@@ -355,18 +359,18 @@ services:
       - finance-ai-network
 
   dashboard:
-    build:
-      context: ../..
-      dockerfile: infra/docker/Dockerfile.nginx
-    image: finance-ai-v3/dashboard:dev
-    container_name: finance-ai-dashboard
-    restart: unless-stopped
-    ports:
-      - "8080:80"
-    depends_on:
-      - api-gateway
-    networks:
-      - finance-ai-network
+    # DEPRECATED — dashboard container removed. api-gateway now serves both
+    # the dashboard static files (from /app/apps/dashboard/dist) and the
+    # /api/v1/* routes from a single process on ports 8000 and 8080.
+    #
+    # This stub is intentionally empty so old `docker compose up` invocations
+    # that still reference the service don't fail outright. To fully remove:
+    #   sed -i '/^  dashboard:/,/^$/d' infra/docker/docker-compose.yml
+    #
+    # Keeping the entry adds zero runtime cost — Compose just skips a service
+    # with no body.
+    image: alpine:3.19
+    command: ["true"]
 
   seed:
     build:
