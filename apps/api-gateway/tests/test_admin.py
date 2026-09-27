@@ -278,7 +278,7 @@ async def test_providers_returns_six_entries(client):
     assert names == {"openai", "anthropic", "minimax", "deepseek", "ollama", "custom"}
     # minimax is required to be present with the documented base URL.
     minimax = next(p for p in body["items"] if p["name"] == "minimax")
-    assert minimax["base_url"] == "https://api.MiniMax.chat/v1"
+    assert minimax["base_url"] == "https://api.minimax.io/v1"
     assert minimax["default_model"] == "MiniMax-M3"
     assert minimax["requires_key"] is True
 

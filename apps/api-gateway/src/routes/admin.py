@@ -117,7 +117,7 @@ PROVIDER_REGISTRY: list[dict[str, Any]] = [
     },
     {
         "name": "minimax",
-        "base_url": "https://api.MiniMax.chat/v1",
+        "base_url": "https://api.minimax.io/v1",
         "requires_key": True,
         "default_model": "MiniMax-M3",
         "supports_streaming": True,
@@ -412,13 +412,20 @@ async def test_llm_key(
         # Build ping URL: ollama is special (/api/tags); others hit /v1/models.
         if provider == "ollama":
             ping_url = f"{base.rstrip('/')}/api/tags"
+            ping_payload = None
             headers: dict[str, str] = {}
         elif provider == "custom":
             # ``api_key`` is the full URL — skip /models.
             ping_url = base.rstrip("/")
+            ping_payload = None
             headers = {}
         else:
+            # MiniMax, Mistral, DeepSeek, OpenAI — start with /v1/models which
+            # is a lightweight GET that returns the catalog without consuming
+            # tokens. If /v1/models returns 404 (e.g. MiniMax exposes only
+            # /chat/completions) fall back to a minimal chat completion ping.
             ping_url = f"{base.rstrip('/')}/v1/models"
+            ping_payload = None
             headers = {"Authorization": f"Bearer {api_key}"}
 
         started = time.perf_counter()
@@ -429,7 +436,48 @@ async def test_llm_key(
             async with httpx.AsyncClient(timeout=8.0) as client:
                 resp = await client.get(ping_url, headers=headers)
                 latency_ms = int((time.perf_counter() - started) * 1000)
-                if resp.status_code == 200:
+                # Some providers don't expose /v1/models — fall back to a
+                # minimal chat-completion ping (still cheaper than a real call).
+                if resp.status_code == 404 and provider != "ollama" and provider != "custom":
+                    fb_url = f"{base.rstrip('/')}/chat/completions"
+                    fb_body = {
+                        "model": row.get("model") or "default",
+                        "messages": [{"role": "user", "content": "ping"}],
+                        "max_tokens": 1,
+                    }
+                    fb_resp = await client.post(
+                        fb_url,
+                        headers={**headers, "Content-Type": "application/json"},
+                        json=fb_body,
+                    )
+                    latency_ms = int((time.perf_counter() - started) * 1000)
+                    if fb_resp.status_code in (200, 401, 402):
+                        # 200 = OK, 401 = bad key, 402 = out of credit. Either
+                        # way, the *endpoint* exists and accepts OpenAI-format
+                        # requests, which is the actual connectivity test.
+                        if fb_resp.status_code == 200:
+                            status = "active"
+                            try:
+                                payload = fb_resp.json()
+                            except Exception:
+                                payload = {}
+                        elif fb_resp.status_code in (401, 403):
+                            payload = None
+                            status = "invalid"
+                            error = "key rejected (HTTP " + str(fb_resp.status_code) + ")"
+                        elif fb_resp.status_code == 402:
+                            payload = None
+                            status = "invalid"
+                            error = "out of credit (HTTP 402)"
+                        else:
+                            payload = None
+                            status = "invalid"
+                            error = f"HTTP {fb_resp.status_code}"
+                        model_count = _model_count_for(provider, payload)
+                    else:
+                        status = "invalid"
+                        error = f"HTTP {fb_resp.status_code}"
+                elif resp.status_code == 200:
                     payload: Any = None
                     try:
                         payload = resp.json()

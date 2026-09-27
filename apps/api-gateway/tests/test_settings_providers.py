@@ -17,11 +17,11 @@ from routes import settings as settings_module
 
 
 def test_minimax_is_first_provider_openai_format():
-    """MiniMax is OpenAI-compatible on https://api.MiniMax.chat/v1."""
+    """MiniMax is OpenAI-compatible on https://api.minimax.io/v1."""
     p = settings_module.provider_by_id("minimax")
     assert p is not None, "minimax must be in the registry"
     assert p["api_format"] == "openai"
-    assert p["base_url"].startswith("https://api.MiniMax.chat/")
+    assert p["base_url"].startswith("https://api.minimax.io/")
     assert "minimax-m3" in p["models"]
     assert p["default_model"] == "minimax-m3"
 
