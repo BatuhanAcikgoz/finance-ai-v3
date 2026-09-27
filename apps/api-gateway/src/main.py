@@ -319,6 +319,36 @@ async def _p_system_health_html(): return _serve_dashboard_path("system-health.h
 async def _p_login_html(): return _serve_dashboard_path("login.html")
 
 
+# Per-asset GET routes — explicit so we don't fall back to a catch-all
+# that would intercept non-GET methods on /api/*. Listing each one
+# keeps FastAPI's path matching straightforward and avoids the
+# method-mismatch 405 that a generic catch-all would otherwise produce.
+@app.get("/admin.js", include_in_schema=False)
+async def _admin_js(): return _serve_dashboard_path("admin.js")
+@app.get("/alerts.js", include_in_schema=False)
+async def _alerts_js(): return _serve_dashboard_path("alerts.js")
+@app.get("/app.js", include_in_schema=False)
+async def _app_js(): return _serve_dashboard_path("app.js")
+@app.get("/decision-detail.js", include_in_schema=False)
+async def _decision_detail_js(): return _serve_dashboard_path("decision-detail.js")
+@app.get("/decisions.js", include_in_schema=False)
+async def _decisions_js(): return _serve_dashboard_path("decisions.js")
+@app.get("/latest-preview.js", include_in_schema=False)
+async def _latest_preview_js(): return _serve_dashboard_path("latest-preview.js")
+@app.get("/login.js", include_in_schema=False)
+async def _login_js(): return _serve_dashboard_path("login.js")
+@app.get("/portfolio.js", include_in_schema=False)
+async def _portfolio_js(): return _serve_dashboard_path("portfolio.js")
+@app.get("/settings.js", include_in_schema=False)
+async def _settings_js(): return _serve_dashboard_path("settings.js")
+@app.get("/side-nav.js", include_in_schema=False)
+async def _side_nav_js(): return _serve_dashboard_path("side-nav.js")
+@app.get("/system-health.js", include_in_schema=False)
+async def _system_health_js(): return _serve_dashboard_path("system-health.js")
+@app.get("/ui.js", include_in_schema=False)
+async def _ui_js(): return _serve_dashboard_path("ui.js")
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
