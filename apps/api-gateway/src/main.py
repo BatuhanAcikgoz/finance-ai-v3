@@ -255,88 +255,50 @@ async def _llm_key_test_trailing_slash_alias(key_id: str):
 # above (`dashboard_alias`, etc.) and via the FastAPI static mount in
 # the image's /app/apps/dashboard/dist directory, which the reverse-
 # proxy layer in front of this used to expose as /<page>.html.
-@app.get("/index", include_in_schema=False)
-async def _page_index(): return _serve_dashboard_path("index.html")
-@app.get("/decisions", include_in_schema=False)
-async def _page_decisions(): return _serve_dashboard_path("decisions.html")
-@app.get("/decision-detail", include_in_schema=False)
-async def _page_decision_detail(): return _serve_dashboard_path("decision-detail.html")
-@app.get("/portfolio", include_in_schema=False)
-async def _page_portfolio(): return _serve_dashboard_path("portfolio.html")
-@app.get("/alerts", include_in_schema=False)
-async def _page_alerts(): return _serve_dashboard_path("alerts.html")
-@app.get("/settings", include_in_schema=False)
-async def _page_settings(): return _serve_dashboard_path("settings.html")
-@app.get("/admin", include_in_schema=False)
-async def _page_admin(): return _serve_dashboard_path("admin.html")
-@app.get("/system-health", include_in_schema=False)
-async def _page_system_health(): return _serve_dashboard_path("system-health.html")
-@app.get("/login", include_in_schema=False)
-async def _page_login(): return _serve_dashboard_path("login.html")
+#
+# Three flat lists below replace ~80 lines of one-line `@app.get(...)`
+# handlers. Same behaviour: any of /<page>, /<page>.html, /<asset>
+# resolves to its file in dist/. Adding a new page = one entry in
+# `_PAGE_NAMES`; adding a new asset = one entry in `_ASSET_NAMES`.
+_PAGE_NAMES = [
+    "index", "decisions", "decision-detail", "portfolio", "alerts",
+    "settings", "admin", "system-health", "login",
+]
+_ASSET_NAMES = [
+    "styles.css", "styles.css.map", "favicon.svg",
+    "admin.js", "alerts.js", "app.js", "decision-detail.js",
+    "decisions.js", "latest-preview.js", "login.js", "portfolio.js",
+    "settings.js", "side-nav.js", "system-health.js", "ui.js",
+]
 
 
-# Common asset route — supports /styles.css, /ui.js, /side-nav.js, etc.
-# when the dashboard references them by bare filename rather than via the
-# page route above.
-@app.get("/styles.css", include_in_schema=False)
-async def _styles_css(): return _serve_dashboard_path("styles.css")
-@app.get("/styles.css.map", include_in_schema=False)
-async def _styles_css_map(): return _serve_dashboard_path("styles.css.map")
-@app.get("/favicon.svg", include_in_schema=False)
-async def _favicon_svg(): return _serve_dashboard_path("favicon.svg")
+def _add_dashboard_routes() -> None:
+    """Register one GET route per dashboard page + per asset."""
+    for name in _PAGE_NAMES:
+        # /<page>  →  <page>.html
+        app.add_api_route(
+            f"/{name}",
+            lambda name=name: _serve_dashboard_path(f"{name}.html"),
+            methods=["GET"],
+            include_in_schema=False,
+        )
+        # /<page>.html  →  <page>.html  (back-compat)
+        app.add_api_route(
+            f"/{name}.html",
+            lambda name=name: _serve_dashboard_path(f"{name}.html"),
+            methods=["GET"],
+            include_in_schema=False,
+        )
+    for asset in _ASSET_NAMES:
+        app.add_api_route(
+            f"/{asset}",
+            lambda asset=asset: _serve_dashboard_path(asset),
+            methods=["GET"],
+            include_in_schema=False,
+        )
 
 
-# Backward-compatible .html aliases — older deployments used /<page>.html
-# paths; we now serve /<page> (clean URLs) but accept both for users with
-# stale bookmarks.
-@app.get("/index.html", include_in_schema=False)
-async def _p_index_html(): return _serve_dashboard_path("index.html")
-@app.get("/decisions.html", include_in_schema=False)
-async def _p_decisions_html(): return _serve_dashboard_path("decisions.html")
-@app.get("/decision-detail.html", include_in_schema=False)
-async def _p_decision_detail_html(): return _serve_dashboard_path("decision-detail.html")
-@app.get("/portfolio.html", include_in_schema=False)
-async def _p_portfolio_html(): return _serve_dashboard_path("portfolio.html")
-@app.get("/alerts.html", include_in_schema=False)
-async def _p_alerts_html(): return _serve_dashboard_path("alerts.html")
-@app.get("/settings.html", include_in_schema=False)
-async def _p_settings_html(): return _serve_dashboard_path("settings.html")
-@app.get("/admin.html", include_in_schema=False)
-async def _p_admin_html(): return _serve_dashboard_path("admin.html")
-@app.get("/system-health.html", include_in_schema=False)
-async def _p_system_health_html(): return _serve_dashboard_path("system-health.html")
-@app.get("/login.html", include_in_schema=False)
-async def _p_login_html(): return _serve_dashboard_path("login.html")
-
-
-# Per-asset GET routes — explicit so we don't fall back to a catch-all
-# that would intercept non-GET methods on /api/*. Listing each one
-# keeps FastAPI's path matching straightforward and avoids the
-# method-mismatch 405 that a generic catch-all would otherwise produce.
-@app.get("/admin.js", include_in_schema=False)
-async def _admin_js(): return _serve_dashboard_path("admin.js")
-@app.get("/alerts.js", include_in_schema=False)
-async def _alerts_js(): return _serve_dashboard_path("alerts.js")
-@app.get("/app.js", include_in_schema=False)
-async def _app_js(): return _serve_dashboard_path("app.js")
-@app.get("/decision-detail.js", include_in_schema=False)
-async def _decision_detail_js(): return _serve_dashboard_path("decision-detail.js")
-@app.get("/decisions.js", include_in_schema=False)
-async def _decisions_js(): return _serve_dashboard_path("decisions.js")
-@app.get("/latest-preview.js", include_in_schema=False)
-async def _latest_preview_js(): return _serve_dashboard_path("latest-preview.js")
-@app.get("/login.js", include_in_schema=False)
-async def _login_js(): return _serve_dashboard_path("login.js")
-@app.get("/portfolio.js", include_in_schema=False)
-async def _portfolio_js(): return _serve_dashboard_path("portfolio.js")
-@app.get("/settings.js", include_in_schema=False)
-async def _settings_js(): return _serve_dashboard_path("settings.js")
-@app.get("/side-nav.js", include_in_schema=False)
-async def _side_nav_js(): return _serve_dashboard_path("side-nav.js")
-@app.get("/system-health.js", include_in_schema=False)
-async def _system_health_js(): return _serve_dashboard_path("system-health.js")
-@app.get("/ui.js", include_in_schema=False)
-async def _ui_js(): return _serve_dashboard_path("ui.js")
+_add_dashboard_routes()
 
 
 if __name__ == "__main__":
