@@ -2282,3 +2282,155 @@ main { animation: page-fade-in 220ms var(--ease-glide); }
   padding: 2px 6px;
   border-radius: 4px;
 }
+
+/* =========================================================================
+ * LLM KEY MODAL (Admin page "New Key" button → <dialog id="key-modal">)
+ * ========================================================================= */
+.key-modal {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg, 14px);
+  padding: 0;
+  width: min(540px, 92vw);
+  background: var(--card);
+  color: var(--label);
+  box-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.55),
+              0 0 0 1px var(--border) inset;
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+}
+.key-modal::backdrop {
+  background: radial-gradient(ellipse at center,
+              rgba(10, 20, 40, 0.55),
+              rgba(0, 0, 0, 0.75));
+  backdrop-filter: blur(6px);
+}
+.key-modal[open] { animation: key-modal-in 0.18s ease-out; }
+@keyframes key-modal-in {
+  from { transform: translateY(8px) scale(0.985); opacity: 0; }
+  to   { transform: none; opacity: 1; }
+}
+.key-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+}
+.key-modal-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+.key-modal-close {
+  background: transparent;
+  border: 0;
+  color: var(--muted);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: background-color .15s ease, color .15s ease;
+}
+.key-modal-close:hover { background: rgba(255, 255, 255, 0.06); color: var(--label); }
+.key-modal-body {
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.key-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--label-secondary);
+}
+.key-field > span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.key-field > span em {
+  color: #ff6b6b;
+  font-style: normal;
+  font-weight: 700;
+}
+.key-field > span small {
+  font-weight: 400;
+  color: var(--muted);
+}
+.key-field input,
+.key-field select {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 9px 11px;
+  color: var(--label);
+  font-size: 13px;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+.key-field input:hover, .key-field select:hover { border-color: rgba(94, 92, 230, 0.4); }
+.key-field input:focus, .key-field select:focus {
+  outline: none;
+  border-color: var(--accent, #5e5ce6);
+  box-shadow: 0 0 0 3px rgba(94, 92, 230, 0.18);
+}
+.key-field input::placeholder { color: var(--muted); opacity: 0.7; }
+.key-field.key-checkbox {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--label);
+  cursor: pointer;
+}
+.key-field.key-checkbox input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+.key-input-wrap {
+  position: relative;
+  display: flex;
+}
+.key-input-wrap input {
+  width: 100%;
+  padding-right: 38px;
+}
+.key-show-toggle {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  color: var(--muted);
+  padding: 4px 6px;
+  border-radius: 4px;
+  font-size: 16px;
+  line-height: 1;
+}
+.key-show-toggle:hover { color: var(--label); background: rgba(255, 255, 255, 0.05); }
+.key-form-hint {
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+.key-form-hint code {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+.key-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 14px 20px;
+  border-top: 1px solid var(--border);
+}

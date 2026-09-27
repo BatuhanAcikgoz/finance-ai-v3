@@ -81,7 +81,10 @@
   }
 
   function adminSend(method, path, body) {
+    // FastAPI default route is "" which 307-redirects to "/". That's a
+    // network round-trip per call. Append "/" proactively to skip it.
     var url = '/api/v1/admin/' + path;
+    if (!/\?/.test(url) && !url.endsWith('/')) url += '/';
     return window.FA.ui.fetchAdmin(url, {
       method: method,
       headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
@@ -193,15 +196,50 @@
 
   function editKey(row) {
     var v = readKeyFromRow(row);
-    var newApiKey = window.prompt('Yeni API anahtarı / New API key (boş = değiştirme):', '');
-    if (newApiKey === null) return;
-    adminSend('PUT', 'llm/keys', Object.assign({}, v, newApiKey ? { api_key: newApiKey } : {}))
-      .then(function (res) {
-        if (!res.ok) { window.FA.ui.toast('Kayıt başarısız / Save failed (' + res.status + ')'); return; }
+    // Inline confirm for the api-key field — opens a small input next to
+    // the row instead of a window.prompt() that browsers may block.
+    var inline = row.querySelector('[data-edit-apikey]');
+    if (inline) inline.remove();
+    var wrap = document.createElement('div');
+    wrap.setAttribute('data-edit-apikey', '');
+    wrap.style.cssText = 'position:relative;flex:1;display:flex;gap:6px;align-items:center;';
+    var inp = document.createElement('input');
+    inp.type = 'password';
+    inp.placeholder = 'Yeni API anahtarı / New key (boş = değiştirme)';
+    inp.style.cssText = 'flex:1;background:rgba(0,0,0,0.3);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--label);font-size:12px;font-family:ui-monospace;';
+    var save = document.createElement('button');
+    save.type = 'button';
+    save.className = 'btn btn-primary';
+    save.style.cssText = 'padding:4px 10px;font-size:12px;';
+    save.textContent = '💾';
+    save.title = 'Kaydet / Save';
+    var cancel = document.createElement('button');
+    cancel.type = 'button';
+    cancel.className = 'btn';
+    cancel.style.cssText = 'padding:4px 10px;font-size:12px;';
+    cancel.textContent = '✕';
+    cancel.title = 'İptal / Cancel';
+    function close() { wrap.remove(); }
+    save.addEventListener('click', function () {
+      var body = Object.assign({}, v, inp.value ? { api_key: inp.value } : {});
+      adminSend('PUT', 'llm/keys', body).then(function (res) {
+        if (!res.ok) { window.FA.ui.toast('Kayıt başarısız / Save failed (' + res.status + ')', { type: 'error' }); return; }
         window.FA.ui.toast('Anahtar güncellendi / Key updated');
+        close();
         loadKeys();
-      })
-      .catch(function () { window.FA.ui.toast('Ağ hatası / Network error'); });
+      }).catch(function () { window.FA.ui.toast('Ağ hatası / Network error', { type: 'error' }); });
+    });
+    cancel.addEventListener('click', close);
+    inp.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); save.click(); }
+      if (e.key === 'Escape') { e.preventDefault(); close(); }
+    });
+    wrap.appendChild(inp);
+    wrap.appendChild(save);
+    wrap.appendChild(cancel);
+    var actionsCell = row.querySelector('[data-cell="actions"]') || row.lastElementChild;
+    if (actionsCell) actionsCell.appendChild(wrap);
+    inp.focus();
   }
 
   function testKey(row) {
@@ -218,35 +256,162 @@
 
   function deleteKey(row) {
     var v = readKeyFromRow(row);
-    if (!window.confirm('Silmek istediğinize emin misiniz? / Delete ' + v.provider + '/' + v.model + '?')) return;
-    adminSend('DELETE', 'llm/keys', v)
-      .then(function (res) {
-        if (!res.ok) { window.FA.ui.toast('Silme başarısız / Delete failed (' + res.status + ')'); return; }
-        window.FA.ui.toast('Anahtar silindi / Key deleted');
-        loadKeys();
-      })
-      .catch(function () { window.FA.ui.toast('Ağ hatası / Network error'); });
-  }
+      // Inline confirmation — replaces window.confirm() which browsers
+      // commonly disable and which can't be styled.
+      var existing = row.querySelector('[data-delete-confirm]');
+      if (existing) { existing.remove(); return; }
+      var bar = document.createElement('div');
+      bar.setAttribute('data-delete-confirm', '');
+      bar.style.cssText = 'display:flex;gap:6px;align-items:center;padding:4px 8px;background:rgba(255,80,80,0.10);border:1px solid rgba(255,80,80,0.35);border-radius:6px;margin-top:4px;';
+      bar.innerHTML =
+        '<span style="font-size:12px;flex:1;">' + v.provider + '/' + v.model + ' silinsin mi?</span>' +
+        '<button type="button" class="btn" style="padding:3px 8px;font-size:11px;" data-no>İptal</button>' +
+        '<button type="button" class="btn btn-primary" style="padding:3px 8px;font-size:11px;background:#ff5e5e;border-color:#ff5e5e;" data-yes>Sil</button>';
+      var actionsCell = row.querySelector('[data-cell="actions"]') || row.lastElementChild;
+      actionsCell.appendChild(bar);
+      bar.querySelector('[data-no]').addEventListener('click', function () { bar.remove(); });
+      bar.querySelector('[data-yes]').addEventListener('click', function () {
+        bar.remove();
+        adminSend('DELETE', 'llm/keys', { provider: v.provider, model: v.model })
+          .then(function (res) {
+            if (!res.ok) { window.FA.ui.toast('Silme başarısız / Delete failed (' + res.status + ')', { type: 'error' }); return; }
+            window.FA.ui.toast('Anahtar silindi / Key deleted');
+            loadKeys();
+          })
+          .catch(function () { window.FA.ui.toast('Ağ hatası / Network error', { type: 'error' }); });
+      });
+    }
 
   function bindKeysControls() {
     var $refresh = $('#keys-refresh');
     var $add     = $('#keys-add');
     if ($refresh) $refresh.addEventListener('click', loadKeys);
-    if ($add) $add.addEventListener('click', function () {
-      var provider = window.prompt('Sağlayıcı / Provider (openai / anthropic / gemini / …):', 'openai');
-      if (!provider) return;
-      var model = window.prompt('Model (örn. gpt-4o):', 'gpt-4o');
-      if (!model) return;
-      var api_key = window.prompt('API anahtarı / API key:', '');
-      if (!api_key) { window.FA.ui.toast('İptal / Cancelled'); return; }
-      adminSend('POST', 'llm/keys', { provider: provider, model: model, api_key: api_key })
-        .then(function (res) {
-          if (!res.ok) { window.FA.ui.toast('Ekleme başarısız / Add failed (' + res.status + ')'); return; }
-          window.FA.ui.toast('Anahtar eklendi / Key added');
-          loadKeys();
-        })
-        .catch(function () { window.FA.ui.toast('Ağ hatası / Network error'); });
+
+    if ($add) $add.addEventListener('click', function () { openKeyModal(); });
+    bindKeyModal();
+  }
+
+  // -------- KEY MODAL -------------------------------------------------------
+  function openKeyModal() {
+    var dlg = document.getElementById('key-modal');
+    if (!dlg) {
+      console.error('key-modal dialog missing');
+      return;
+    }
+    // Reset form each time so previous inputs don't linger.
+    var form = document.getElementById('key-form');
+    if (form) form.reset();
+    var title = document.getElementById('key-modal-title');
+    if (title) title.textContent = 'LLM Anahtarı Ekle / Add LLM Key';
+    var submit = document.getElementById('key-form-submit');
+    if (submit) submit.disabled = false;
+
+    // Prefill provider/model from current setting so the user lands on the
+    // platform default rather than blank.
+    fetchJsonSafe('/api/v1/settings/').then(function (s) {
+      if (!s || !s.llm) return;
+      var pSel = document.getElementById('key-form-provider');
+      var mInp = document.getElementById('key-form-model');
+      if (pSel && s.llm.provider) pSel.value = s.llm.provider;
+      if (mInp && s.llm.model)    mInp.value = s.llm.model;
     });
+
+    if (typeof dlg.showModal === 'function') {
+      dlg.showModal();
+    } else {
+      // Fallback for browsers without <dialog>: render as fixed overlay.
+      dlg.setAttribute('open', '');
+      dlg.style.position = 'fixed';
+      dlg.style.inset = '50% auto auto 50%';
+      dlg.style.transform = 'translate(-50%, -50%)';
+      dlg.style.zIndex = 1000;
+    }
+    setTimeout(function () {
+      var f = document.getElementById('key-form-provider');
+      if (f) f.focus();
+    }, 30);
+  }
+
+  function closeKeyModal() {
+    var dlg = document.getElementById('key-modal');
+    if (!dlg) return;
+    if (typeof dlg.close === 'function') {
+      dlg.close();
+    } else {
+      dlg.removeAttribute('open');
+      dlg.style.position = '';
+    }
+  }
+
+  function bindKeyModal() {
+    var dlg = document.getElementById('key-modal');
+    var form = document.getElementById('key-form');
+    var close = document.getElementById('key-modal-close');
+    var cancel = document.getElementById('key-modal-cancel');
+    var showBtn = document.getElementById('key-form-show');
+    var apikey = document.getElementById('key-form-apikey');
+    if (!dlg || !form) return;
+
+    if (close) close.addEventListener('click', closeKeyModal);
+    if (cancel) cancel.addEventListener('click', closeKeyModal);
+    // Click outside (on backdrop) closes the dialog.
+    dlg.addEventListener('click', function (e) {
+      if (e.target === dlg) closeKeyModal();
+    });
+    // ESC closes dialog natively for <dialog>; ensure cancel button isn't
+    // skipped in keyboard nav.
+    if (showBtn && apikey) {
+      showBtn.addEventListener('click', function () {
+        if (apikey.type === 'password') {
+          apikey.type = 'text';
+          showBtn.setAttribute('aria-label', 'Anahtarı gizle');
+          showBtn.textContent = '🙈';
+        } else {
+          apikey.type = 'password';
+          showBtn.setAttribute('aria-label', 'Anahtarı göster');
+          showBtn.textContent = '👁';
+        }
+      });
+    }
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var fd = new FormData(form);
+      var payload = {
+        provider: String(fd.get('provider') || '').trim(),
+        model:    String(fd.get('model') || '').trim(),
+        label:    String(fd.get('label') || '').trim() || null,
+        api_key:  String(fd.get('api_key') || '').trim(),
+        set_active: !!document.getElementById('key-form-set-active').checked,
+      };
+      if (!payload.provider || !payload.model || !payload.api_key) {
+        window.FA.ui.toast('Sağlayıcı, model ve anahtar zorunlu / Provider, model and key are required', { type: 'error' });
+        return;
+      }
+      var submit = document.getElementById('key-form-submit');
+      if (submit) submit.disabled = true;
+      adminSend('POST', 'llm/keys', payload).then(function (res) {
+        if (!res.ok) {
+          window.FA.ui.toast('Ekleme başarısız / Add failed (' + res.status + ')', { type: 'error' });
+          if (submit) submit.disabled = false;
+          return;
+        }
+        window.FA.ui.toast('Anahtar eklendi / Key added');
+        closeKeyModal();
+        loadKeys();
+      }).catch(function () {
+        window.FA.ui.toast('Ağ hatası / Network error', { type: 'error' });
+        var submit2 = document.getElementById('key-form-submit');
+        if (submit2) submit2.disabled = false;
+      });
+    });
+  }
+
+  // fetchJsonSafe: GET a URL and parse JSON, never throw. Tiny helper so
+  // the prefill-from-current-settings call can't crash the modal flow.
+  function fetchJsonSafe(url) {
+    return fetch(url, { headers: { 'Accept': 'application/json' } })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .catch(function () { return null; });
   }
 
   // -------- PROVIDERS ------------------------------------------------------
