@@ -28,6 +28,23 @@
     errBox.hidden = !msg;
   }
 
+  // Friendly mapping of known backend errors to human-readable guidance.
+  // Anything not in this map falls through to the backend's own message.
+  function friendly(msg) {
+    if (!msg) return "Giriş başarısız.";
+    const m = String(msg).toLowerCase();
+    if (m.includes("invalid credentials") || m.includes("invalid session")) {
+      return "Kullanıcı adı veya parola hatalı. (Varsayılan: admin / admin)";
+    }
+    if (m.includes("user disabled")) {
+      return "Bu kullanıcı devre dışı bırakılmış.";
+    }
+    if (m.includes("network") || m.includes("failed to fetch")) {
+      return "Sunucuya ulaşılamıyor. Ağ bağlantınızı kontrol edin.";
+    }
+    return msg;
+  }
+
   async function postJSON(url, body) {
     const r = await fetch(url, {
       method: "POST",
@@ -40,7 +57,7 @@
     try { data = text ? JSON.parse(text) : null; } catch (_) { /* ignore */ }
     if (!r.ok) {
       const detail = (data && (data.detail || data.error)) || r.statusText || "giriş başarısız";
-      throw new Error(detail);
+      throw new Error(friendly(detail));
     }
     return data;
   }
