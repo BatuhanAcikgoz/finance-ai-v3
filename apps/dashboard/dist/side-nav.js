@@ -37,19 +37,19 @@
 
   <div class="nav-group" data-group="trading">
     <span class="nav-group-label">Trading / Trading</span>
-    <a class="nav-link" href="index.html" data-nav="overview">
+    <a class="nav-link" href="index" data-nav="overview">
       <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
       <span class="nav-link-label">Genel Bakış · Overview</span>
     </a>
-    <a class="nav-link" href="decisions.html" data-nav="decisions">
+    <a class="nav-link" href="decisions" data-nav="decisions">
       <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
       <span class="nav-link-label">Kararlar · Decisions</span>
     </a>
-    <a class="nav-link" href="portfolio.html" data-nav="portfolio">
+    <a class="nav-link" href="portfolio" data-nav="portfolio">
       <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
       <span class="nav-link-label">Portföy · Portfolio</span>
     </a>
-    <a class="nav-link" href="alerts.html" data-nav="alerts">
+    <a class="nav-link" href="alerts" data-nav="alerts">
       <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
       <span class="nav-link-label">Uyarılar · Alerts</span>
     </a>
@@ -57,11 +57,11 @@
 
   <div class="nav-group" data-group="analytics">
     <span class="nav-group-label">Analiz · Analytics</span>
-    <a class="nav-link" href="decision-detail.html" data-nav="decision-detail">
+    <a class="nav-link" href="decision-detail" data-nav="decision-detail">
       <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
       <span class="nav-link-label">Karar Detayı · Decision Detail</span>
     </a>
-    <a class="nav-link" href="system-health.html" data-nav="system-health">
+    <a class="nav-link" href="system-health" data-nav="system-health">
       <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
       <span class="nav-link-label">Sistem Sağlığı · System Health</span>
     </a>
@@ -69,7 +69,7 @@
 
   <div class="nav-group" data-group="system">
     <span class="nav-group-label">Sistem · System</span>
-    <a class="nav-link" href="settings.html" data-nav="settings">
+    <a class="nav-link" href="settings" data-nav="settings">
       <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
       <span class="nav-link-label">Ayarlar · Settings</span>
     </a>
@@ -77,7 +77,7 @@
 
   <div class="nav-group" data-group="admin" data-admin-only>
     <span class="nav-group-label">Yönetim · Admin</span>
-    <a class="nav-link" href="admin.html" data-nav="admin">
+    <a class="nav-link" href="admin" data-nav="admin">
       <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
       <span class="nav-link-label">Yönetim Paneli · Admin</span>
     </a>
@@ -91,7 +91,7 @@
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
   </button>
   <div class="topbar-breadcrumb" id="topbar-breadcrumb">
-    <a href="index.html">Finance AI V3</a><span class="bc-sep">/</span><span data-active-label>—</span>
+    <a href="index">Finance AI V3</a><span class="bc-sep">/</span><span data-active-label>—</span>
   </div>
   <div class="topbar-right">
     <button class="theme-toggle" data-theme-toggle aria-label="Tema / Theme" type="button">
@@ -116,14 +116,7 @@
   // ─────────────────────────────────────────────────────────────────────
 
   const PAGE_MAP = [
-    { test: /index\.html$/,              key: "overview" },
-    { test: /decisions\.html$/,          key: "decisions" },
-    { test: /decision-detail\.html$/,    key: "decision-detail" },
-    { test: /portfolio\.html$/,          key: "portfolio" },
-    { test: /alerts\.html$/,             key: "alerts" },
-    { test: /system-health\.html$/,      key: "system-health" },
-    { test: /settings\.html$/,           key: "settings" },
-    { test: /admin\.html$/,              key: "admin" },
+    { test: /(decisions|decision-detail|portfolio|alerts|system-health|settings|admin|index|login)(?:\\.html)?$/, key: (m) => m[1] },
   ];
 
   function resolveActiveFromPath(p) {
@@ -286,8 +279,8 @@
           try { await FA.session.signOut(); } catch (_) { /* ignore */ }
         }
         // Hard fallback — never leave the user stranded.
-        try { location.replace("/login.html"); }
-        catch (_) { location.href = "/login.html"; }
+        try { location.replace("/login"); }
+        catch (_) { location.href = "/login"; }
       });
     }
   }
@@ -361,7 +354,7 @@
       menu.removeAttribute("aria-haspopup");
       // Make the whole menu behave as a link.
       menu.addEventListener("click", () => {
-        try { location.href = "/login.html"; } catch (_) { /* no-op */ }
+        try { location.href = "/login"; } catch (_) { /* no-op */ }
       }, { once: true });
     }
   }

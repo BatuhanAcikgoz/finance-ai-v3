@@ -166,7 +166,7 @@
           return;
         }
         // change-password deletes the cookie. Send the user back to login.
-        window.location.href = "/login.html?rotated=1";
+        window.location.href = "/login?rotated=1";
       } catch (ex) {
         err.textContent = ex && ex.message ? ex.message : "değiştirilemedi";
         err.hidden = false;

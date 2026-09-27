@@ -2,7 +2,7 @@ from contextlib import asynccontextmanager
 import os
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -124,6 +124,9 @@ app.include_router(admin.router, prefix="/api/v1/admin", tags=["Admin"])
 app.include_router(ws_market.router, prefix="/api/v1/market", tags=["Market WS"])
 
 
+
+
+
 # ─── Static dashboard (replaces the legacy nginx proxy) ─────────────────
 # When nginx is removed, the FastAPI process becomes the single origin: the
 # browser hits /admin.html and gets the HTML shell, /styles.css / side-nav.js
@@ -160,6 +163,15 @@ def _resolve_static(path: str) -> Path | None:
     return target if target.is_file() else None
 
 
+# Clean-URL routing + unified static handling.
+# We deliberately do NOT use StaticFiles(..., mount="/") here because
+# FastAPI mounts always match before routes — including the catch-all
+# `/api/*` chains we register. Instead we route everything via the
+# explicit handlers below. Path-only links (`/decisions`) and explicit
+# links (`/decisions.html`) both land on the same file.
+_CLEAN_URL_EXCLUDE = {"api", "docs", "redoc", "openapi.json", "favicon.ico"}
+
+
 @app.get("/", include_in_schema=False)
 async def dashboard_root():
     return FileResponse(_STATIC_DIR / "index.html")
@@ -170,25 +182,141 @@ async def dashboard_alias_root():
     return RedirectResponse(url="/index.html", status_code=302)
 
 
+@app.get("/", include_in_schema=False)
+async def dashboard_root():
+    return FileResponse(_STATIC_DIR / "index.html")
+
+
+@app.get("/dashboard", include_in_schema=False)
+async def dashboard_alias_root():
+    return RedirectResponse(url="/index", status_code=302)
+
+
 @app.get("/dashboard/{page:path}", include_in_schema=False)
 async def dashboard_alias(page: str):
     """Back-compat alias — older deployments used /dashboard/ prefix."""
+    return _serve_dashboard_path(page)
+
+
+def _serve_dashboard_path(page: str):
+    """Resolve `page` to a static file in dist/.
+
+    Order of preference:
+      1. exact `dist/<page>` (e.g. dist/decisions.html or dist/decisions)
+      2. `dist/<page>.html` (clean URL fallback)
+      3. nothing → redirect to /index
+    """
+    if not _STATIC_DIR.exists():
+        raise HTTPException(status_code=404)
+    first = page.split("/", 1)[0] if page else ""
+    if first in _CLEAN_URL_EXCLUDE or first.startswith("api"):
+        # Should have been caught by an earlier API route; this is a safety net.
+        raise HTTPException(status_code=404)
     target = _resolve_static(page)
     if target:
         return FileResponse(target)
-    index_target = _resolve_static(page + ".html") if not page.endswith(".html") else None
-    if index_target:
-        return FileResponse(index_target)
-    return RedirectResponse(url="/index.html", status_code=302)
+    if not page.endswith(".html"):
+        target = _resolve_static(page + ".html")
+        if target:
+            return FileResponse(target)
+    return RedirectResponse(url="/index", status_code=302)
 
 
-if _STATIC_DIR.exists() and (_STATIC_DIR / "index.html").is_file():
-    app.mount("/", StaticFiles(directory=str(_STATIC_DIR), html=False), name="dashboard")
-else:
-    import logging
-    logging.getLogger(__name__).warning(
-        "dashboard static dir not found at %s — skipping mount", _STATIC_DIR
+# Catch-all: serves /<page> AND /<page>.html from dist/. Registered last so
+# all the API routers above win their matches first. Path-only dashboard
+# links (`/decisions`) work without a `/decisions.html` rewrite on the
+# frontend; legacy `*.html` links still resolve.
+# Catch-all handler REMOVED to avoid Starlette's 405 on path-only routes.
+# Each dashboard page is registered explicitly below — see /index,
+# /decisions, /portfolio, etc. Per-page routing also means `/api/*`
+# won't be intercepted by this catch-all when the API routers happen
+# to return 404 for an unknown path — the routers themselves will
+# keep their 404/405 behaviour without our interference.
+
+
+# Trailing-slash fallback for POST/PUT/PATCH/DELETE: the dashboard's
+# admin form auto-appends `/` on POST (some browsers do this on form
+# submit). FastAPI's `redirect_slashes` is GET-only; for unsafe methods
+# we send a 308 Permanent Redirect so the body is preserved per RFC.
+@app.api_route(
+    "/api/v1/admin/llm/keys/",
+    methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
+    include_in_schema=False,
+)
+async def _llm_keys_trailing_slash_alias():
+    return RedirectResponse(url="/api/v1/admin/llm/keys", status_code=308)
+
+
+@app.api_route(
+    "/api/v1/admin/llm/keys/{key_id}/test/",
+    methods=["POST"],
+    include_in_schema=False,
+)
+async def _llm_key_test_trailing_slash_alias(key_id: str):
+    return RedirectResponse(
+        url=f"/api/v1/admin/llm/keys/{key_id}/test", status_code=308
     )
+
+
+# Per-page clean-URL routing. We can't use a generic catch-all because
+# Starlette would treat unmatched methods on it as 405, breaking PATCH/
+# POST for the API endpoints. So each dashboard page gets its own GET
+# alias. Legacy `*.html` links still resolve via the explicit handlers
+# above (`dashboard_alias`, etc.) and via the FastAPI static mount in
+# the image's /app/apps/dashboard/dist directory, which the reverse-
+# proxy layer in front of this used to expose as /<page>.html.
+@app.get("/index", include_in_schema=False)
+async def _page_index(): return _serve_dashboard_path("index.html")
+@app.get("/decisions", include_in_schema=False)
+async def _page_decisions(): return _serve_dashboard_path("decisions.html")
+@app.get("/decision-detail", include_in_schema=False)
+async def _page_decision_detail(): return _serve_dashboard_path("decision-detail.html")
+@app.get("/portfolio", include_in_schema=False)
+async def _page_portfolio(): return _serve_dashboard_path("portfolio.html")
+@app.get("/alerts", include_in_schema=False)
+async def _page_alerts(): return _serve_dashboard_path("alerts.html")
+@app.get("/settings", include_in_schema=False)
+async def _page_settings(): return _serve_dashboard_path("settings.html")
+@app.get("/admin", include_in_schema=False)
+async def _page_admin(): return _serve_dashboard_path("admin.html")
+@app.get("/system-health", include_in_schema=False)
+async def _page_system_health(): return _serve_dashboard_path("system-health.html")
+@app.get("/login", include_in_schema=False)
+async def _page_login(): return _serve_dashboard_path("login.html")
+
+
+# Common asset route — supports /styles.css, /ui.js, /side-nav.js, etc.
+# when the dashboard references them by bare filename rather than via the
+# page route above.
+@app.get("/styles.css", include_in_schema=False)
+async def _styles_css(): return _serve_dashboard_path("styles.css")
+@app.get("/styles.css.map", include_in_schema=False)
+async def _styles_css_map(): return _serve_dashboard_path("styles.css.map")
+@app.get("/favicon.svg", include_in_schema=False)
+async def _favicon_svg(): return _serve_dashboard_path("favicon.svg")
+
+
+# Backward-compatible .html aliases — older deployments used /<page>.html
+# paths; we now serve /<page> (clean URLs) but accept both for users with
+# stale bookmarks.
+@app.get("/index.html", include_in_schema=False)
+async def _p_index_html(): return _serve_dashboard_path("index.html")
+@app.get("/decisions.html", include_in_schema=False)
+async def _p_decisions_html(): return _serve_dashboard_path("decisions.html")
+@app.get("/decision-detail.html", include_in_schema=False)
+async def _p_decision_detail_html(): return _serve_dashboard_path("decision-detail.html")
+@app.get("/portfolio.html", include_in_schema=False)
+async def _p_portfolio_html(): return _serve_dashboard_path("portfolio.html")
+@app.get("/alerts.html", include_in_schema=False)
+async def _p_alerts_html(): return _serve_dashboard_path("alerts.html")
+@app.get("/settings.html", include_in_schema=False)
+async def _p_settings_html(): return _serve_dashboard_path("settings.html")
+@app.get("/admin.html", include_in_schema=False)
+async def _p_admin_html(): return _serve_dashboard_path("admin.html")
+@app.get("/system-health.html", include_in_schema=False)
+async def _p_system_health_html(): return _serve_dashboard_path("system-health.html")
+@app.get("/login.html", include_in_schema=False)
+async def _p_login_html(): return _serve_dashboard_path("login.html")
 
 
 if __name__ == "__main__":

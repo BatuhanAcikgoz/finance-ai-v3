@@ -3,7 +3,7 @@
 // Replaces the previous X-Admin-Token / localStorage pattern. Auth is now
 // an HttpOnly cookie issued by POST /v1/auth/login. Pages that need
 // authentication call window.FA.requireSession() at startup — it returns
-// 302-style redirect to /login.html if the session is missing/expired.
+// 302-style redirect to /login if the session is missing/expired.
 //
 // Surface:
 //   window.FA.requireSession()               → redirect to login if no session
@@ -27,8 +27,8 @@
                     ? window.location.origin + "/api/v1"
                     : "/api/v1");
   const LOGIN_URL = (typeof window !== "undefined" && window.location
-                    ? window.location.origin + "/login.html"
-                    : "/login.html");
+                    ? window.location.origin + "/login"
+                    : "/login");
 
   async function whoami() {
     try {
@@ -280,10 +280,10 @@
     return String(id).replace(/-/g, "").slice(0, 8);
   }
   function detailUrl(id) {
-    return "decision-detail.html?id=" + encodeURIComponent(id);
+    return "decision-detail?id=" + encodeURIComponent(id);
   }
   function decisionsUrl(ticker) {
-    return ticker ? ("decisions.html?ticker=" + encodeURIComponent(ticker)) : "decisions.html";
+    return ticker ? ("decisions?ticker=" + encodeURIComponent(ticker)) : "decisions";
   }
   function renderTRT(iso) {
     if (!iso) return "—";

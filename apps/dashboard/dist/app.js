@@ -848,12 +848,12 @@
 
     /** Detail page URL for a decision (works from any path). */
     detailUrl: function (id) {
-      return 'decision-detail.html?id=' + encodeURIComponent(id);
+      return 'decision-detail?id=' + encodeURIComponent(id);
     },
 
     /** Decisions list page URL with optional ticker pre-filter. */
     decisionsUrl: function (ticker) {
-      return ticker ? ('decisions.html?ticker=' + encodeURIComponent(ticker)) : 'decisions.html';
+      return ticker ? ('decisions?ticker=' + encodeURIComponent(ticker)) : 'decisions';
     },
 
     /**
@@ -1534,12 +1534,12 @@
   // ---- Command bar (Cmd+K / Ctrl+K) ----------------------------------------
   var CMD_ACTIONS = [
     { label: 'Genel Bakış / Overview', href: '/', hint: 'G O' },
-    { label: 'Kararlar / Decisions', href: '/decisions.html', hint: 'G D' },
-    { label: 'Portföy / Portfolio', href: '/portfolio.html', hint: 'G P' },
-    { label: 'Uyarılar / Alerts', href: '/alerts.html', hint: 'G A' },
-    { label: 'Sistem Sağlığı / System Health', href: '/system-health.html', hint: 'G S' },
-    { label: 'Admin', href: '/admin.html', hint: 'G .' },
-    { label: 'Ayarlar / Settings', href: '/settings.html', hint: 'G ,' },
+    { label: 'Kararlar / Decisions', href: '/decisions', hint: 'G D' },
+    { label: 'Portföy / Portfolio', href: '/portfolio', hint: 'G P' },
+    { label: 'Uyarılar / Alerts', href: '/alerts', hint: 'G A' },
+    { label: 'Sistem Sağlığı / System Health', href: '/system-health', hint: 'G S' },
+    { label: 'Admin', href: '/admin', hint: 'G .' },
+    { label: 'Ayarlar / Settings', href: '/settings', hint: 'G ,' },
   ];
 
   function openCommandBar() {
@@ -1644,9 +1644,9 @@
     }
     if (_gArmed && Date.now() - _gArmedAt < 1500) {
       var map = {
-        'o': '/', 'd': '/decisions.html', 'p': '/portfolio.html',
-        'a': '/alerts.html', 's': '/system-health.html',
-        ',': '/settings.html', '.': '/admin.html',
+        'o': '/', 'd': '/decisions', 'p': '/portfolio',
+        'a': '/alerts', 's': '/system-health',
+        ',': '/settings', '.': '/admin',
       };
       var dest = map[e.key.toLowerCase()];
       if (dest) {

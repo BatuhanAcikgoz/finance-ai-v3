@@ -296,7 +296,7 @@
       + '<div class="error-state">'
       +   '<p><strong>Karar bulunamadı / Decision not found.</strong></p>'
       +   '<p class="subtle">Aradığınız karar silinmiş veya hiç var olmamış olabilir.</p>'
-      +   '<p style="margin-top:10px;"><a href="decisions.html">← Tüm kararlar / All decisions</a></p>'
+      +   '<p style="margin-top:10px;"><a href="decisions">← Tüm kararlar / All decisions</a></p>'
       + '</div>';
     $portfolio.innerHTML = '';
     $compliance.innerHTML = '';
@@ -345,7 +345,7 @@
       $evidence.innerHTML = ''
         + '<div class="error-state">'
         +   'Karar ID belirtilmedi / No decision id supplied.'
-        +   '<br/><a href="decisions.html">← Tüm kararlar / All decisions</a>'
+        +   '<br/><a href="decisions">← Tüm kararlar / All decisions</a>'
         + '</div>';
       return;
     }

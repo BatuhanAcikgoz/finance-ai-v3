@@ -199,7 +199,7 @@
     holdings.forEach(function (h) {
       var driftCls = Math.abs(h.drift || 0) < 0.05 ? 'neutral' : (h.drift >= 0 ? 'pos' : 'neg');
       var pnlCls = (h.daily_pnl_pct || 0) >= 0 ? 'pos' : 'neg';
-      var detailHref = 'decision-detail.html?ticker=' + encodeURIComponent(h.ticker);
+      var detailHref = 'decision-detail?ticker=' + encodeURIComponent(h.ticker);
       rows.push(
         '<tr data-ticker="' + escapeHtml(h.ticker) + '">' +
         '<td><a href="' + detailHref + '">' + escapeHtml(h.ticker) + '</a></td>' +
