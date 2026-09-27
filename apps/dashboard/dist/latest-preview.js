@@ -81,18 +81,25 @@
   }
 
   // Wait until app.js (window.FA) has booted before polling.
+  var bootTimer = null;
   function boot() {
     if (!window.FA) {
       // app.js hasn't run yet — wait one tick.
-      return setTimeout(boot, 30);
+      bootTimer = setTimeout(boot, 30);
+      return;
     }
     tick();
     window.FA.attachRefreshLoop(tick, 30000);
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', boot);
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", boot);
   } else {
     boot();
   }
+  // Cleanup the boot-time retry timer on navigation so the recursive
+  // setTimeout chain doesn't keep firing on a page the user has left.
+  window.addEventListener("pagehide", function () {
+    if (bootTimer) clearTimeout(bootTimer);
+  });
 })();

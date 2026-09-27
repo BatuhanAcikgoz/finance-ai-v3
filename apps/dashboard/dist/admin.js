@@ -539,7 +539,8 @@
     bindKeysControls();
     bindRefreshButtons();
     refreshAll();
-    setInterval(refreshAll, REFRESH_MS);
+    var _refreshTimer = setInterval(refreshAll, REFRESH_MS);
+    window.addEventListener('pagehide', function () { clearInterval(_refreshTimer); });
   }
 
   if (document.readyState === 'loading') {

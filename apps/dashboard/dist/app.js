@@ -156,11 +156,6 @@
     });
   }
 
-  /** GET → text (cheap reachability check). */
-  function fetchText(path) {
-    return fetch(path, { method: 'GET', credentials: 'same-origin' });
-  }
-
   function normalizeList(data) {
     if (Array.isArray(data)) return data;
     if (data && Array.isArray(data.items))    return data.items;
@@ -602,7 +597,6 @@
       return;
     }
     var rows = tickers.map(function (t) {
-      var p = pctSign(t.change);
       return { ticker: t.ticker, change: t.change === null ? null : Number(t.change), last: t.last };
     }).filter(function (r) { return r.change !== null && !isNaN(r.change); });
 
@@ -626,10 +620,6 @@
       + top.map(row).join('')
       + '<div style="font-size:11px;color:var(--muted-foreground);text-transform:uppercase;letter-spacing:.04em;margin-top:6px;">Düşenler</div>'
       + bot.map(row).join('');
-  }
-
-  function pctSign(n) {
-    return { change: n };
   }
 
   function renderIndexTile($val, $chg, label, value, change) {
@@ -767,11 +757,18 @@
     renderAlertsSkeleton();
     renderMarketSkeleton();
 
-    // Kick off the data loop.
+    // Kick off the data loop. Keep the handles so we can clearInterval
+    // them on pagehide — otherwise navigating away from /index leaks a
+    // pair of long-running fetch loops that hammer /api/health and
+    // /api/v1/decisions/recent even after the page is gone.
     pollHealth();
     refreshAll();
-    setInterval(pollHealth, HEALTH_MS);
-    setInterval(refreshAll,  REFRESH_MS);
+    var healthTimer = setInterval(pollHealth, HEALTH_MS);
+    var refreshTimer = setInterval(refreshAll,  REFRESH_MS);
+    window.addEventListener("pagehide", function () {
+      clearInterval(healthTimer);
+      clearInterval(refreshTimer);
+    });
     // `connectWs` is defined later in this file inside a separate IIFE
     // (lines ~1167+). From `boot()`'s lexical scope it is undefined —
     // calling the bare name throws ReferenceError on every page load.
@@ -816,23 +813,6 @@
 
     /** JSON GET helper. */
     fetchJson: fetchJson,
-
-    /** POST helper (unused for now; wired for future actions). */
-    fetchPost: function (path, body) {
-      return fetch(path, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-        credentials: 'same-origin',
-        body: JSON.stringify(body || {}),
-      }).then(function (res) {
-        if (!res.ok) {
-          var err = new Error('HTTP ' + res.status + ' on POST ' + path);
-          err.status = res.status;
-          throw err;
-        }
-        return res.json();
-      });
-    },
 
     /** Accept an array OR an envelope {items:[]} / {decisions:[]} / etc. */
     normalizeList: normalizeList,
@@ -1069,91 +1049,6 @@
 
     /** Toggle the home-page refresh indicator (if present in the DOM). */
     setLoading: setLoading,
-
-    // ========================================================================
-    // SwiftUI Liquid Glass render helpers.
-    // Added 2026-09-24 to keep the shared app.js in sync with styles.css.
-    // All renderers return HTML strings — never touch the DOM directly.
-    // ========================================================================
-
-    /**
-     * Health pill — small rounded badge with a coloured dot.
-     *   status: 'online' | 'degraded' | 'offline' | 'unknown'
-     * Returns the inner HTML for placement inside #health-badge.
-     */
-    renderHealthPill: function (status) {
-      var s = (status || 'unknown').toString().toLowerCase();
-      var label = s === 'online'    ? 'çevrimiçi / online'
-                : s === 'degraded'  ? 'kısıtlı / degraded'
-                : s === 'offline'   ? 'çevrimdışı / offline'
-                :                     'bilinmiyor / unknown';
-      return '<span class="dot" aria-hidden="true"></span>'
-           + '<span class="label">' + this.esc(label) + '</span>';
-    },
-
-    /**
-     * Action badge — already provided via renderActionBadge, but the spec
-     * also wants the short alias. Keeps backward compatibility.
-     */
-    renderBadge: function (cls, text) {
-      return '<span class="badge ' + this.esc(cls) + '">' + this.esc(text) + '</span>';
-    },
-
-    /**
-     * Empty state with an inline SF-Symbol-style icon.
-     *   iconName — see icon() registry below
-     */
-    renderEmptyState: function (iconName, title, body) {
-      var iconHtml = window.FA.icon(iconName);
-      var html = '<div class="empty-state glass" role="status">'
-               + '<div style="display:flex;flex-direction:column;align-items:center;gap:10px;padding:24px 12px;">'
-               +   '<div style="width:42px;height:42px;border-radius:14px;display:grid;place-items:center;'
-               +        'background:linear-gradient(135deg,var(--accent),var(--accent-secondary));color:#fff;">'
-               +     iconHtml
-               +   '</div>'
-               +   '<div style="font-weight:700;color:var(--label);">' + this.esc(title) + '</div>'
-               +   '<div style="font-size:12px;color:var(--label-secondary);max-width:320px;">' + this.esc(body) + '</div>'
-               + '</div></div>';
-      return html;
-    },
-
-    /**
-     * Centered "Yükleniyor… / Loading…" panel with dot-pulse spinner.
-     * Wrap around empty tables/lists while fetching.
-     */
-    renderLoading: function (label) {
-      var text = label || 'Yükleniyor… / Loading…';
-      return '<div class="loading-state" role="status" aria-live="polite">'
-           +   '<div>' + this.esc(text) + '</div>'
-           +   '<div class="dot-pulse" aria-hidden="true"><span></span><span></span><span></span></div>'
-           + '</div>';
-    },
-
-    /**
-     * Inline-SVG icon registry. SF-Symbol-inspired names; monochrome,
-     * 1.6 stroke, currentColor. Sized 16-20px by the parent layout.
-     */
-    icon: function (name) {
-      var ICONS = {
-        'chart.bar':                  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg>',
-        'bolt.horizontal':            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>',
-        'checkmark.circle.fill':      '<svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm-1.2 14.4L6 11.6l1.4-1.4 3.4 3.4 6.2-6.2 1.4 1.4z"/></svg>',
-        'exclamationmark.triangle.fill':'<svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M12 1.6 22.4 21H1.6L12 1.6zm0 6.4a1 1 0 0 0-1 1v5a1 1 0 0 0 2 0V9a1 1 0 0 0-1-1zm0 9.2a1.2 1.2 0 1 0 1.2 1.2 1.2 1.2 0 0 0-1.2-1.2z"/></svg>',
-        'chart.line.uptrend':         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><polyline points="3 17 9 11 13 15 21 7"/><polyline points="15 7 21 7 21 13"/></svg>',
-        'person.circle':              '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" width="18" height="18"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0" stroke-linecap="round"/></svg>',
-        'gearshape':                  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3h.1a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8v.1a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>',
-        'stethoscope':                '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><path d="M4 4v6a4 4 0 0 0 8 0V4"/><path d="M8 14a5 5 0 0 0 10 0v-3"/><circle cx="18" cy="6" r="2"/></svg>',
-        'newspaper':                  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="7" y1="8" x2="17" y2="8"/><line x1="7" y1="12" x2="17" y2="12"/><line x1="7" y1="16" x2="13" y2="16"/></svg>',
-        'envelope.badge.shield.half.filled':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/><path d="M19 12a3 3 0 0 0-3 3v3l3 1 3-1v-3a3 3 0 0 0-3-3z" fill="currentColor" fill-opacity="0.4"/></svg>',
-        'bell.badge.fill':            '<svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M12 2a6 6 0 0 0-6 6v3.6L4 14v1h16v-1l-2-2.4V8a6 6 0 0 0-6-6zm0 20a3 3 0 0 0 3-3H9a3 3 0 0 0 3 3z"/><circle cx="17" cy="6" r="3" fill="var(--danger, #ff453a)"/></svg>',
-        'cpu':                        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="15" x2="23" y2="15"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="15" x2="4" y2="15"/></svg>',
-        'speedometer':                '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><path d="M3 12a9 9 0 1 1 18 0"/><path d="M12 12l4-4"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/></svg>',
-        'moon.stars':                 '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>',
-        'globe':                      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg>',
-        'list.bullet.rectangle.portrait':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><rect x="5" y="3" width="14" height="18" rx="2"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg>',
-      };
-      return ICONS[name] || ICONS['list.bullet.rectangle.portrait'];
-    },
   };
 
   // Expose globally for the per-page scripts (decisions.js, decision-detail.js).
@@ -1310,19 +1205,6 @@
     });
   }
 
-  // ---- Toast (Kaydedildi / Saved) ----------------------------------------
-  function toast(msg, ms) {
-    var t = document.createElement('div');
-    t.className = 'toast';
-    t.textContent = msg || 'Kaydedildi / Saved';
-    document.body.appendChild(t);
-    requestAnimationFrame(function () { t.classList.add('is-show'); });
-    setTimeout(function () {
-      t.classList.remove('is-show');
-      setTimeout(function () { t.remove(); }, 220);
-    }, ms || 2200);
-  }
-
   // ---- Init on DOMContentLoaded -------------------------------------------
   // Theme toggling now lives in side-nav.js (own the toggle button); here
   // we keep tilt + admin link lock.
@@ -1339,6 +1221,8 @@
   }
 
   // Public surface (extend, don't replace).
+  // Note: `toast` is intentionally absent — ui.js's `FA.toast.show` / `FA.ui.toast`
+  // (a 1-arg shim around showToast) is the canonical surface for every page.
   window.FA = window.FA || {};
   window.FA.ui = {
     applyTheme:      applyTheme,
@@ -1347,7 +1231,6 @@
     getAdminToken:   getAdminToken,
     setAdminToken:   setAdminToken,
     fetchAdmin:      fetchAdmin,
-    toast:           toast,
     initTilt:        initTilt,
     SUN_SVG:         SUN_SVG,
     MOON_SVG:        MOON_SVG,
@@ -1488,38 +1371,6 @@
   window.FA = window.FA || {};
   window.FA.ui = window.FA.ui || {};
   window.FA.ui.toast = toast;
-
-  // ---- Empty state helper --------------------------------------------------
-  function emptyState(opts) {
-    opts = opts || {};
-    var node = document.createElement('div');
-    node.className = 'empty-state';
-    node.setAttribute('role', 'status');
-    if (opts.icon) {
-      var ico = document.createElement('span');
-      ico.innerHTML = opts.icon;
-      node.appendChild(ico);
-    }
-    var title = document.createElement('div');
-    title.className = 'empty-title';
-    title.textContent = opts.title || 'Veri yok / Nothing here yet';
-    node.appendChild(title);
-    if (opts.body) {
-      var body = document.createElement('div');
-      body.className = 'empty-body';
-      body.textContent = opts.body;
-      node.appendChild(body);
-    }
-    if (opts.cta) {
-      var btn = document.createElement('button');
-      btn.className = 'empty-cta';
-      btn.textContent = opts.cta;
-      if (opts.onClick) btn.addEventListener('click', opts.onClick);
-      node.appendChild(btn);
-    }
-    return node;
-  }
-  window.FA.ui.emptyState = emptyState;
 
   // ---- Skip-to-main link ---------------------------------------------------
   (function addSkipLink() {

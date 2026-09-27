@@ -413,6 +413,10 @@
 
   // ---- Boot -----------------------------------------------------------------
   loadList().then(refresh).catch(refresh);
-  setInterval(refresh, REFRESH_MS);
-  setInterval(loadList, REFRESH_MS * 4);
+  var _refreshTimer1 = setInterval(refresh, REFRESH_MS);
+  var _refreshTimer2 = setInterval(loadList, REFRESH_MS * 4);
+  window.addEventListener('pagehide', function () {
+    clearInterval(_refreshTimer1);
+    clearInterval(_refreshTimer2);
+  });
 })();

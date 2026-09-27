@@ -179,16 +179,6 @@ async def dashboard_root():
 
 @app.get("/dashboard", include_in_schema=False)
 async def dashboard_alias_root():
-    return RedirectResponse(url="/index.html", status_code=302)
-
-
-@app.get("/", include_in_schema=False)
-async def dashboard_root():
-    return FileResponse(_STATIC_DIR / "index.html")
-
-
-@app.get("/dashboard", include_in_schema=False)
-async def dashboard_alias_root():
     return RedirectResponse(url="/index", status_code=302)
 
 

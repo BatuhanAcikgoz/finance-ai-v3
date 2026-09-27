@@ -237,5 +237,6 @@
     }).then(function () { setLoading(false); });
   }
   refresh();
-  setInterval(refresh, REFRESH_MS);
+  var _refreshTimer = setInterval(refresh, REFRESH_MS);
+  window.addEventListener('pagehide', function () { clearInterval(_refreshTimer); });
 })();
