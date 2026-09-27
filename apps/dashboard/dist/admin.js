@@ -67,7 +67,7 @@
    * On 401/403 we surface a clear "token invalid" hint.
    */
   function adminGet(path) {
-    var url = '/admin/' + path;
+    var url = path;
     return window.FA.api.fetchAdmin(url, { headers: { 'Accept': 'application/json' } })
       .then(function (res) {
         if (res.status === 404) return null;
@@ -83,7 +83,7 @@
   function adminSend(method, path, body) {
     // FastAPI default route is "" which 307-redirects to "/". That's a
     // network round-trip per call. Append "/" proactively to skip it.
-    var url = '/admin/' + path;
+    var url = path;
     if (!/\?/.test(url) && !url.endsWith('/')) url += '/';
     return window.FA.api.fetchAdmin(url, {
       method: method,
