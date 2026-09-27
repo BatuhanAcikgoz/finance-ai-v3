@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+import os
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -76,12 +77,27 @@ app = FastAPI(
 
 # Middleware
 app.add_middleware(LoggingMiddleware)
+
+# CORS — origins are read from the FA_ALLOWED_ORIGINS env var (comma
+# separated) so dev / preview / prod don't have to redeploy to add a host.
+# Defaults include every address the docker stack and a local browser are
+# realistically going to hit, so the most common case is "no config needed".
+_cors_env = os.environ.get(
+    "FA_ALLOWED_ORIGINS",
+    "http://localhost:3000,http://localhost:3001,"
+    "http://localhost:8080,http://127.0.0.1:8080,"
+    "http://localhost:8000,http://127.0.0.1:8000,"
+    "http://localhost:5173,http://127.0.0.1:5173",
+)
+ALLOWED_ORIGINS = [o.strip() for o in _cors_env.split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:3001"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["X-Admin-Token-Required"],
+    max_age=600,  # cache preflight for 10 min
 )
 app.add_middleware(RateLimitMiddleware)
 
