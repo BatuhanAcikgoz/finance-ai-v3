@@ -1242,6 +1242,18 @@
   // ---- WebSocket live tick (issue #1 / FR-005) ------------------------------
   var _ws = null;
   var _wsAttempts = 0;
+  // Close the WS and reset state on navigation so we don't leave the
+  // reconnect timer + a half-open socket firing after the user leaves
+  // the page. Without this the user navigates to /decisions and the
+  // ws_market connection (and its exponential-backoff setTimeout
+  // chain) keeps running indefinitely — real memory + socket leak.
+  window.addEventListener("pagehide", function () {
+    _wsAttempts = 0;
+    if (_ws && _ws.readyState !== WebSocket.CLOSED) {
+      try { _ws.close(); } catch (e) { /* already closed */ }
+    }
+    _ws = null;
+  });
   var _wsToken = null;
 
   function ensureWsToken(cb) {
@@ -1282,6 +1294,9 @@
         var url = proto + '//' + (location.host || 'localhost:8080') +
                   '/api/v1/market/ws/market';
         if (token) url += '?token=' + encodeURIComponent(token);
+        if (_ws && _ws.readyState !== WebSocket.CLOSED) {
+          try { _ws.close(); } catch (e) { /* already closed */ }
+        }
         _ws = new WebSocket(url);
         _ws.onmessage = function (ev) {
           try {
