@@ -210,7 +210,7 @@ async def _authorize_ws(ws: WebSocket) -> dict | None:
     """
     token = ws.query_params.get("token")
     if token:
-        return decode_jwt(token)
+        return await decode_jwt(token)
 
     # Wait briefly for a first-message handshake.
     try:
@@ -218,7 +218,7 @@ async def _authorize_ws(ws: WebSocket) -> dict | None:
         import json as _json
         msg = _json.loads(first)
         if isinstance(msg, dict) and msg.get("type") == "auth" and msg.get("token"):
-            return decode_jwt(msg["token"])
+            return await decode_jwt(msg["token"])
     except (asyncio.TimeoutError, Exception):  # noqa: BLE001
         pass
     return None

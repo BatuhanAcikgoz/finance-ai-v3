@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Giriş · Finance AI V3</title>
+  <link rel="stylesheet" href="styles.css?v=2026.10.01" />
+</head>
+<body class="login-body">
+  <div class="login-stage">
+    <section class="login-card">
+      <header class="login-head">
+        <div class="login-logo" aria-hidden="true">
+          <span class="login-logo-dot"></span>
+        </div>
+        <h1 class="login-title">Finance&nbsp;AI V3</h1>
+        <p class="login-sub">Trading platforma erişmek için oturum açın.</p>
+      </header>
+
+      <form id="login-form" class="login-form" autocomplete="on" novalidate>
+        <label class="field">
+          <span class="field-label">Kullanıcı adı</span>
+          <input
+            type="text"
+            id="login-username"
+            name="username"
+            required
+            autocomplete="username"
+            spellcheck="false"
+            autocapitalize="off"
+            placeholder="admin" />
+        </label>
+
+        <label class="field">
+          <span class="field-label">Parola</span>
+          <div class="field-input-wrap">
+            <input
+              type="password"
+              id="login-password"
+              name="password"
+              required
+              autocomplete="current-password"
+              placeholder="••••••••"
+              minlength="6" />
+            <button
+              type="button"
+              class="field-toggle"
+              id="login-show"
+              aria-label="Parolayı göster"
+              tabindex="-1">👁</button>
+          </div>
+        </label>
+
+        <div class="login-error" id="login-error" role="alert" hidden></div>
+
+        <button type="submit" class="btn btn-primary btn-block" id="login-submit">
+          <span class="btn-label">Oturum aç</span>
+        </button>
+
+        <p class="login-foot">
+          Dev ortamında varsayılan kullanıcı <code>admin</code> ·
+          <button type="button" class="link" id="login-rotate">parolayı değiştir</button>
+        </p>
+      </form>
+
+      <!-- change-password panel: visible only when login response says must_change_password -->
+      <form id="rotate-form" class="login-form" hidden>
+        <h2 class="login-subtitle">İlk oturum — parola değiştir</h2>
+        <label class="field">
+          <span class="field-label">Mevcut parola</span>
+          <input type="password" id="rotate-current" required autocomplete="current-password" />
+        </label>
+        <label class="field">
+          <span class="field-label">Yeni parola (en az 6 karakter)</span>
+          <input type="password" id="rotate-new" required minlength="6" autocomplete="new-password" />
+        </label>
+        <label class="field">
+          <span class="field-label">Yeni parola (tekrar)</span>
+          <input type="password" id="rotate-new2" required minlength="6" autocomplete="new-password" />
+        </label>
+        <div class="login-error" id="rotate-error" role="alert" hidden></div>
+        <button type="submit" class="btn btn-primary btn-block">
+          <span class="btn-label">Parolayı kaydet</span>
+        </button>
+      </form>
+    </section>
+
+    <aside class="login-side">
+      <ul class="login-side-list">
+        <li><strong>Sunucu</strong><span id="login-host">—</span></li>
+        <li><strong>API</strong><code id="login-api">/api</code></li>
+        <li><strong>Cookie</strong><span>HttpOnly · SameSite=Lax</span></li>
+        <li><strong>TTL</strong><span>30 gün</span></li>
+      </ul>
+      <p class="login-side-foot">
+        Finance AI V3 · server-side session tokens backed by MySQL.
+      </p>
+    </aside>
+  </div>
+
+  <script src="login.js?v=2026.10.01" defer></script>
+</body>
+</html>

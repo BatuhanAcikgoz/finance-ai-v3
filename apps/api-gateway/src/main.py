@@ -45,6 +45,8 @@ async def lifespan(app: FastAPI):
     pool = await db.get_pool()
     if pool is not None:
         await db.ensure_schema()
+        # Seed the default admin/admin account if the users table is empty.
+        await auth.ensure_default_admin()
     await redis_cache.get_client()  # lazy-connect; cheap
 
     # Start the Phase-1 live decision loop (issue #7). It self-suspends if

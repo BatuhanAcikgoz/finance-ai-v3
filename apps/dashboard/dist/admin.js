@@ -8,7 +8,7 @@
  *   4) System          — CPU / mem / disk / containers / queue.
  *   5) Audit log       — vertical timeline.
  *
- * All /api/v1/admin/* calls go through window.FA.ui.fetchAdmin() which adds
+ * All /api/v1/admin/* calls go through window.FA.api.fetchAdmin() which adds
  * the X-Admin-Token header automatically. When the endpoint isn't implemented
  * yet on api-gateway (this is being built in parallel) we degrade gracefully
  * and render an empty-state with a hint.
@@ -68,7 +68,7 @@
    */
   function adminGet(path) {
     var url = '/api/v1/admin/' + path;
-    return window.FA.ui.fetchAdmin(url, { headers: { 'Accept': 'application/json' } })
+    return window.FA.api.fetchAdmin(url, { headers: { 'Accept': 'application/json' } })
       .then(function (res) {
         if (res.status === 404) return null;
         if (res.status === 401 || res.status === 403) {
@@ -85,83 +85,43 @@
     // network round-trip per call. Append "/" proactively to skip it.
     var url = '/api/v1/admin/' + path;
     if (!/\?/.test(url) && !url.endsWith('/')) url += '/';
-    return window.FA.ui.fetchAdmin(url, {
+    return window.FA.api.fetchAdmin(url, {
       method: method,
       headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
       body: body ? JSON.stringify(body) : undefined,
     });
   }
 
-  // -------- Token bar ------------------------------------------------------
-  function bindTokenBar() {
-    var $input = $('#admin-token');
-    var $save  = $('#admin-token-save');
-    var $clear = $('#admin-token-clear');
-    var $test  = $('#admin-test');
+  function bindSessionBar() {
+    var $name = $('#admin-username');
+    var $role = $('#admin-role');
+    var $expires = $('#admin-session-expires');
+    var $logout = $('#admin-logout');
+    var $refresh = $('#admin-refresh');
 
-    if ($input) {
-      // Auto-fill the dev token on first visit so the admin panel works
-      // out of the box. The user can clear it any time, and a different
-      // value will stick (localStorage keeps whatever they saved).
-      try {
-        if (!localStorage.getItem('finance-ai.admin_token')) {
-          $input.value = 'dev_admin_token_change_me';
-          // Save it immediately so subsequent XHR calls send the header.
-          window.FA.ui.setAdminToken('dev_admin_token_change_me');
+    function render(me) {
+      if ($name) $name.textContent = me && me.username ? me.username : '—';
+      if ($role) $role.textContent = me && me.role ? me.role : '—';
+      if ($expires) {
+        if (me && me.expires_at) {
+          var d = new Date(me.expires_at);
+          $expires.textContent = 'Oturum sona erer: ' + d.toLocaleString('tr-TR');
         } else {
-          $input.value = window.FA.ui.getAdminToken();
+          $expires.textContent = '';
         }
-      } catch (e) { $input.value = window.FA.ui.getAdminToken(); }
+      }
     }
 
-    if ($save) $save.addEventListener('click', function () {
-      window.FA.ui.setAdminToken($input.value || '');
-      window.FA.ui.toast('Token kaydedildi / Saved');
-      var badge = document.getElementById('admin-dev-badge');
-      if (badge) badge.hidden = true;
+    function load() {
+      window.FA.session.whoami().then(render);
+    }
+    if ($refresh) $refresh.addEventListener('click', load);
+    if ($logout) $logout.addEventListener('click', function () {
+      window.FA.session.signOut();
     });
-    var $show = $('#admin-token-show');
-    if ($show) $show.addEventListener('click', function () {
-      if ($input.type === 'password') {
-        $input.type = 'text';
-        $show.textContent = '🙈';
-      } else {
-        $input.type = 'password';
-        $show.textContent = '👁';
-      }
-    });
-    var $clearOnce = $('#admin-token-clear-once');
-    if ($clearOnce) $clearOnce.addEventListener('click', function () {
-      window.FA.ui.setAdminToken('');
-      $input.value = '';
-      var badge = document.getElementById('admin-dev-badge');
-      if (badge) badge.hidden = true;
-      window.FA.ui.toast('Token kaldırıldı / Token cleared');
-    });
-    // Show the dev-badge if we just auto-filled (no prior localStorage entry).
-    try {
-      if ($input.value === 'dev_admin_token_change_me' && window.FA.ui.getAdminToken() === 'dev_admin_token_change_me') {
-        var b = document.getElementById('admin-dev-badge');
-        if (b) b.hidden = false;
-      }
-    } catch (e) {}
-    if ($clear) $clear.addEventListener('click', function () {
-      $input.value = '';
-      window.FA.ui.setAdminToken('');
-      window.FA.ui.toast('Token silindi / Cleared');
-    });
-    if ($test) $test.addEventListener('click', function () {
-      // Quick read of /api/v1/admin/llm/keys — 200 or 401/403 is informative.
-      window.FA.ui.fetchAdmin('/api/v1/admin/llm/keys', { headers: { 'Accept': 'application/json' } })
-        .then(function (res) {
-          if (res.status === 404) { window.FA.ui.toast('Endpoint henüz yok / Not implemented (404)'); return; }
-          if (res.status === 401 || res.status === 403) { window.FA.ui.toast('Token geçersiz / Token rejected (' + res.status + ')'); return; }
-          if (res.ok) { window.FA.ui.toast('Bağlantı başarılı / Connected ✓'); return; }
-          window.FA.ui.toast('Beklenmeyen yanıt / Unexpected (' + res.status + ')');
-        })
-        .catch(function () { window.FA.ui.toast('Ağ hatası / Network error'); });
-    });
+    load();
   }
+
 
   // -------- LLM KEYS -------------------------------------------------------
   function renderKeysRow(k, idx) {
@@ -607,7 +567,7 @@
   }
 
   function boot() {
-    bindTokenBar();
+    bindSessionBar();
     bindKeysControls();
     bindRefreshButtons();
     refreshAll();

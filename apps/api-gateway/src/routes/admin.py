@@ -51,41 +51,61 @@ from decimal import Decimal
 from typing import Any, Optional
 
 import httpx
-from fastapi import APIRouter, Body, Header, HTTPException, Query, Request
+from fastapi import APIRouter, Body, Depends, Header, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 import db
+from .auth import _current_session
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
 # ---- auth -----------------------------------------------------------------
 
-# Default token used when ADMIN_API_TOKEN is unset (dev convenience).
-# Production MUST set ADMIN_API_TOKEN to a strong value.
+# Backward-compatible admin auth:
+#   1. New (preferred): session cookie / Bearer token issued by auth.login().
+#   2. Legacy (dev): X-Admin-Token header matching ADMIN_API_TOKEN env.
+# Both paths are accepted so existing dashboards don't break while the
+# client migrates to cookie-based sessions. Once the dashboard is fully
+# session-based, drop ``_LEGACY_ADMIN_TOKEN_VALID`` and the legacy branch.
 _DEFAULT_ADMIN_TOKEN = "dev_admin_token_change_me"
 
 
 def _configured_admin_token() -> str:
-    """Resolve the configured admin token from env, with a safe default."""
     return os.environ.get("ADMIN_API_TOKEN") or _DEFAULT_ADMIN_TOKEN
 
 
-def _require_admin(x_admin_token: Optional[str]) -> None:
-    """Validate the X-Admin-Token header.
+def _require_admin(
+    request: Request,
+    x_admin_token: Optional[str] = Header(default=None, alias="X-Admin-Token"),
+    authorization: Optional[str] = Header(default=None),
+    sess: Optional[dict] = Depends(_current_session),
+) -> dict:
+    """Resolve the caller's identity.
 
-    Uses ``hmac.compare_digest`` to avoid timing leaks. Raises 401 on
-    mismatch — the error body matches the standard ``_err`` shape so it
-    looks consistent with other 4xx/5xx responses in this codebase.
+    Priority:
+      1. valid session (cookie / Bearer) → return session dict
+      2. legacy X-Admin-Token header → return minimal {'role':'admin'} dict
+      3. otherwise 401.
+
+    Endpoints that need a real user_id (audit_log actor) prefer the
+    session branch. The legacy branch records the actor as 'legacy-token'
+    so audit history stays truthful.
     """
+    if sess is not None:
+        return {"user_id": str(sess["user_id"]), "username": sess["username"],
+                "role": sess["role"], "source": "session"}
     expected = _configured_admin_token()
     presented = x_admin_token or ""
-    if not presented or not hmac.compare_digest(presented, expected):
-        raise HTTPException(
-            status_code=401,
-            detail="invalid or missing X-Admin-Token header",
-        )
+    if presented and hmac.compare_digest(presented, expected):
+        return {"user_id": None, "username": "legacy-token",
+                "role": "admin", "source": "legacy-token"}
+    raise HTTPException(
+        status_code=401,
+        detail="invalid or missing auth (login at /v1/auth/login first, "
+               "or provide X-Admin-Token header)",
+    )
 
 
 # ---- error helper ---------------------------------------------------------
@@ -289,11 +309,10 @@ class UseKeyRequest(BaseModel):
 @router.get("/llm/keys")
 async def list_llm_keys(
     request: Request,
-    x_admin_token: Optional[str] = Header(default=None, alias="X-Admin-Token"),
+    caller: dict = Depends(_require_admin),
 ):
     """List all registered LLM keys (no plaintext api_key returned)."""
     try:
-        _require_admin(x_admin_token)
         rows = await db.fetch(
             """
             SELECT key_id, provider, model, label, masked_key, status,
@@ -316,7 +335,7 @@ async def list_llm_keys(
 async def create_llm_key(
     request: Request,
     body: CreateKeyRequest,
-    x_admin_token: Optional[str] = Header(default=None, alias="X-Admin-Token"),
+    caller: dict = Depends(_require_admin),
 ):
     """Register a new LLM key.
 
@@ -324,7 +343,6 @@ async def create_llm_key(
     to the explicit ``/test`` endpoint). Audited best-effort.
     """
     try:
-        _require_admin(x_admin_token)
         if body.provider not in _PROVIDER_BY_NAME:
             return _err(
                 "invalid_provider",
@@ -380,7 +398,7 @@ async def create_llm_key(
 async def test_llm_key(
     key_id: str,
     request: Request,
-    x_admin_token: Optional[str] = Header(default=None, alias="X-Admin-Token"),
+    caller: dict = Depends(_require_admin),
 ):
     """Live-ping the provider for ``key_id``.
 
@@ -388,7 +406,6 @@ async def test_llm_key(
     returns a JSON body — never raises on network failure.
     """
     try:
-        _require_admin(x_admin_token)
         try:
             key_uuid = uuid.UUID(key_id)
         except ValueError:
@@ -553,11 +570,10 @@ async def patch_llm_key(
     key_id: str,
     request: Request,
     body: PatchKeyRequest,
-    x_admin_token: Optional[str] = Header(default=None, alias="X-Admin-Token"),
+    caller: dict = Depends(_require_admin),
 ):
     """Update label / status / model for a registered key."""
     try:
-        _require_admin(x_admin_token)
         try:
             key_uuid = uuid.UUID(key_id)
         except ValueError:
@@ -628,11 +644,10 @@ async def patch_llm_key(
 async def delete_llm_key(
     key_id: str,
     request: Request,
-    x_admin_token: Optional[str] = Header(default=None, alias="X-Admin-Token"),
+    caller: dict = Depends(_require_admin),
 ):
     """Delete a registered key. 204 on success, 404 if not found."""
     try:
-        _require_admin(x_admin_token)
         try:
             key_uuid = uuid.UUID(key_id)
         except ValueError:
@@ -669,11 +684,10 @@ async def delete_llm_key(
 async def record_llm_key_usage(
     key_id: str,
     body: UseKeyRequest,
-    x_admin_token: Optional[str] = Header(default=None, alias="X-Admin-Token"),
+    caller: dict = Depends(_require_admin),
 ):
     """Increment usage counters for a key (called after each LLM invocation)."""
     try:
-        _require_admin(x_admin_token)
         try:
             key_uuid = uuid.UUID(key_id)
         except ValueError:
@@ -722,11 +736,10 @@ async def record_llm_key_usage(
 
 @router.get("/llm/providers")
 async def list_llm_providers(
-    x_admin_token: Optional[str] = Header(default=None, alias="X-Admin-Token"),
+    caller: dict = Depends(_require_admin),
 ):
     """Static registry of supported LLM providers."""
     try:
-        _require_admin(x_admin_token)
         return {"items": PROVIDER_REGISTRY, "count": len(PROVIDER_REGISTRY)}
     except HTTPException:
         raise
@@ -879,11 +892,10 @@ async def _list_containers(timeout: float = 3.0) -> list[dict[str, Any]]:
 @router.get("/system")
 async def system_overview(
     request: Request,
-    x_admin_token: Optional[str] = Header(default=None, alias="X-Admin-Token"),
+    caller: dict = Depends(_require_admin),
 ):
     """Host-level resource snapshot: CPU, memory, disk, docker containers."""
     try:
-        _require_admin(x_admin_token)
 
         # CPU — psutil first, /proc fallback gives nothing for instant %.
         cpu_pct = _cpu_percent_psutil()
@@ -980,11 +992,10 @@ class AuditEntry(BaseModel):
 async def list_audit_log(
     limit: int = Query(100, le=500),
     since: str = Query("24h"),
-    x_admin_token: Optional[str] = Header(default=None, alias="X-Admin-Token"),
+    caller: dict = Depends(_require_admin),
 ):
     """Tail the ``admin.audit_log`` table, newest first."""
     try:
-        _require_admin(x_admin_token)
         since_ts = _parse_since(since)
         rows = await db.fetch(
             """
@@ -1030,11 +1041,10 @@ async def list_audit_log(
 async def append_audit_log(
     body: AuditEntry,
     request: Request,
-    x_admin_token: Optional[str] = Header(default=None, alias="X-Admin-Token"),
+    caller: dict = Depends(_require_admin),
 ):
     """Append a UI-driven audit entry (dashboard buttons, manual notes)."""
     try:
-        _require_admin(x_admin_token)
         ip = body.ip_addr or _client_ip(request)
         payload = json.dumps(body.summary or {}, default=str)
         status_msg = await db.execute(

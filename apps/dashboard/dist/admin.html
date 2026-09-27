@@ -6,7 +6,7 @@
   <meta name="description" content="Yönetim / Admin — Finance AI V3 LLM keys, providers, system, audit." />
   <title>Yönetim / Admin — Finance AI V3</title>
   <link rel="icon" type="image/svg+xml" href="favicon.svg" />
-  <link rel="stylesheet" href="styles.css?v=2026.09.27d" />
+  <link rel="stylesheet" href="styles.css?v=2026.10.01" />
 
   <script>
     // Pre-paint theme bootstrap — runs before any CSS paints.
@@ -23,7 +23,7 @@
     })();
   </script>
 </head>
-<body>
+<body data-require-session>
   <div class="bg-mesh" aria-hidden="true">
     <div class="blob blob-1"></div>
     <div class="blob blob-2"></div>
@@ -67,25 +67,20 @@
         </div>
       </header>
 
-      <!-- ===== Token bar ===== -->
-      <section class="card glass">
-        <h2>Erişim Anahtarı / Admin Token</h2>
-        <div class="admin-token-bar">
-          <input type="password" id="admin-token" placeholder="X-Admin-Token (örn. dev_admin_token_change_me)" autocomplete="off" />
-          <button class="btn" id="admin-token-save" type="button">Kaydet / Save</button>
-          <button class="btn" id="admin-token-clear" type="button">Temizle / Clear</button>
-          <button class="btn" id="admin-token-show" type="button" aria-label="Göster / Show">👁</button>
-          <button class="btn btn-primary" id="admin-test" type="button">Bağlantıyı Test Et / Test Connection</button>
-          <span class="hint">
-            Bu anahtar tarayıcıda <code>localStorage['finance-ai.admin_token']</code> altında saklanır.
-            Tüm <code>/api/v1/admin/*</code> çağrılarına <code>X-Admin-Token</code> başlığı otomatik eklenir.
-            <em>Stored only in your browser; never sent anywhere except api-gateway.</em>
-          </span>
-          <span class="dev-badge" id="admin-dev-badge" hidden>
-            Dev mode: default token otomatik ayarlandı / auto-filled.
-            <button type="button" id="admin-token-clear-once">Kaldır / Clear</button>
-          </span>
+      <!-- ===== Session bar ===== -->
+      <section class="card glass admin-session">
+        <div class="admin-session-row">
+          <div class="admin-session-id">
+            <span class="admin-session-label">Oturum / Session</span>
+            <strong id="admin-username">—</strong>
+            <span class="admin-session-role" id="admin-role">—</span>
+          </div>
+          <div class="admin-session-actions">
+            <button class="btn" id="admin-refresh" type="button">Yenile / Refresh</button>
+            <button class="btn btn-ghost" id="admin-logout" type="button">Çıkış / Sign out</button>
+          </div>
         </div>
+        <span class="hint" id="admin-session-expires"></span>
       </section>
 
       <!-- ===== LLM KEYS ===== -->
@@ -242,7 +237,7 @@
   </div>
 
   
-  <script src="ui.js?v=2026.09.27d" defer></script>
-  <script src="admin.js?v=2026.09.27d" defer></script>
+  <script src="ui.js?v=2026.10.01" defer></script>
+  <script src="admin.js?v=2026.10.01" defer></script>
 </body>
 </html>

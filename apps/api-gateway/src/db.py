@@ -156,6 +156,32 @@ SCHEMA_SQL: tuple[str, ...] = (
     CREATE INDEX IF NOT EXISTS llm_key_usage_ts_idx
         ON admin.llm_key_usage (ts DESC)
     """,
+    # ---- admin users + sessions (replaces X-Admin-Token / localStorage) ----
+    """
+    CREATE TABLE IF NOT EXISTS admin.users (
+        user_id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        username          VARCHAR(64) UNIQUE NOT NULL,
+        password_hash     TEXT NOT NULL,
+        role              VARCHAR(16) NOT NULL DEFAULT 'admin',
+        created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+        last_login_at     TIMESTAMPTZ,
+        disabled_at       TIMESTAMPTZ
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS admin.sessions (
+        session_id        UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id           UUID NOT NULL REFERENCES admin.users(user_id) ON DELETE CASCADE,
+        token_hash        CHAR(64) UNIQUE NOT NULL,
+        created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+        last_seen_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+        expires_at        TIMESTAMPTZ NOT NULL,
+        ip_addr           VARCHAR(64),
+        user_agent        VARCHAR(255)
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS admin_sessions_token_idx ON admin.sessions(token_hash)",
+    "CREATE INDEX IF NOT EXISTS admin_sessions_expires_idx ON admin.sessions(expires_at)",
 )
 
 
@@ -275,6 +301,14 @@ async def fetchrow(query: str, *args: Any) -> Optional[asyncpg.Record]:
         if conn is None:
             return None
         return await conn.fetchrow(query, *args)
+
+
+async def fetchval(query: str, *args: Any) -> Any:
+    """Convenience: run SELECT and return a single scalar value or None."""
+    async with acquire() as conn:
+        if conn is None:
+            return None
+        return await conn.fetchval(query, *args)
 
 
 async def execute(query: str, *args: Any) -> str:

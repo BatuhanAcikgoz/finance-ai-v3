@@ -1,268 +1,138 @@
-/* ============================================================================
- * ui.js — minimal UI surface used by every page (issue: app.js was overview-
- * specific and threw on missing DOM elements when loaded by admin.html etc.,
- * taking window.FA.ui down with it). Defines only the helpers that are
- * actually safe cross-page: theme, toast, admin-token, fetchAdmin.
- *
- * The big overview-only app.js keeps the heavy lifting (symbols table, charts,
- * WebSocket live tick) on the index page only.
- * ============================================================================ */
-(function () {
-  'use strict';
+// ui.js — single source of truth for cross-page behaviour in the dashboard.
+//
+// Replaces the previous X-Admin-Token / localStorage pattern. Auth is now
+// an HttpOnly cookie issued by POST /v1/auth/login. Pages that need
+// authentication call window.FA.requireSession() at startup — it returns
+// 302-style redirect to /login.html if the session is missing/expired.
+//
+// Surface:
+//   window.FA.requireSession()               → redirect to login if no session
+//   window.FA.api.fetchJSON(path, opts?)     → fetch + JSON parse + 401 handling
+//   window.FA.api.fetchAdmin(path, opts?)    → /api/v1/admin/* (cookie-authed)
+//   window.FA.toast.show(msg, kind?)         → ephemeral toast
+//   window.FA.format.num(x) / date(x) / money(x)
+//   window.FA.session.whoami()               → {username, role, must_change_password}
+//   window.FA.session.signOut()              → POST /v1/auth/logout
+//
+(() => {
+  "use strict";
 
-  // ---- Theme ---------------------------------------------------------------
-  var THEME_KEY = 'finance-ai.theme';
-  function getTheme() {
-    return document.documentElement.getAttribute('data-theme') || 'dark';
-  }
-  function applyTheme(theme) {
-    document.documentElement.setAttribute('data-theme', theme);
-  }
-  function toggleTheme() {
-    var next = getTheme() === 'dark' ? 'light' : 'dark';
-    applyTheme(next);
-    try { localStorage.setItem(THEME_KEY, next); } catch (e) {}
-    document.dispatchEvent(new CustomEvent('themechange', { detail: { theme: next } }));
-    return next;
-  }
+  const API_BASE = "/api/v1";
+  const LOGIN_URL = "/login.html";
 
-  // ---- Admin token + fetchAdmin -------------------------------------------
-  var ADMIN_TOKEN_KEY = 'finance-ai.admin_token';
-  function getAdminToken() {
-    try { return localStorage.getItem(ADMIN_TOKEN_KEY) || ''; }
-    catch (e) { return ''; }
-  }
-  function setAdminToken(v) {
+  async function whoami() {
     try {
-      if (v) localStorage.setItem(ADMIN_TOKEN_KEY, v);
-      else   localStorage.removeItem(ADMIN_TOKEN_KEY);
-    } catch (e) {}
-  }
-  function fetchAdmin(url, opts) {
-    opts = opts || {};
-    opts.headers = Object.assign({}, opts.headers || {}, {
-      'Accept': 'application/json',
-      'X-Admin-Token': getAdminToken(),
-    });
-    return fetch(url, opts);
-  }
-
-  // ---- Toast ---------------------------------------------------------------
-  function ensureToastContainer() {
-    var el = document.querySelector('.toast-container');
-    if (el) return el;
-    el = document.createElement('div');
-    el.className = 'toast-container';
-    el.setAttribute('aria-live', 'polite');
-    document.body.appendChild(el);
-    return el;
-  }
-  function toast(type, message, opts) {
-    type = type || 'info';
-    opts = opts || {};
-    var container = ensureToastContainer();
-    var node = document.createElement('div');
-    node.className = 'toast toast-' + type;
-    node.setAttribute('role', type === 'error' ? 'alert' : 'status');
-    var text = document.createElement('span');
-    text.textContent = message;
-    node.appendChild(text);
-    var progress = document.createElement('span');
-    progress.className = 'toast-progress';
-    node.appendChild(progress);
-    container.appendChild(node);
-    var ttl = opts.ttl || 4000;
-    var dismiss = function () {
-      node.classList.add('toast-dismissing');
-      setTimeout(function () { node.remove(); }, 220);
-    };
-    node.addEventListener('click', dismiss);
-    setTimeout(dismiss, ttl);
-    return dismiss;
-  }
-
-  // ---- Empty state ---------------------------------------------------------
-  function emptyState(opts) {
-    opts = opts || {};
-    var node = document.createElement('div');
-    node.className = 'empty-state';
-    node.setAttribute('role', 'status');
-    if (opts.icon) {
-      var ico = document.createElement('span');
-      ico.innerHTML = opts.icon;
-      node.appendChild(ico);
+      const r = await fetch(API_BASE + "/auth/me", { credentials: "same-origin" });
+      if (r.status === 401) return null;
+      if (!r.ok) return null;
+      return await r.json();
+    } catch (_) {
+      return null;
     }
-    var title = document.createElement('div');
-    title.className = 'empty-title';
-    title.textContent = opts.title || 'Veri yok / Nothing here yet';
-    node.appendChild(title);
-    if (opts.body) {
-      var body = document.createElement('div');
-      body.className = 'empty-body';
-      body.textContent = opts.body;
-      node.appendChild(body);
-    }
-    if (opts.cta) {
-      var btn = document.createElement('button');
-      btn.className = 'empty-cta';
-      btn.textContent = opts.cta;
-      if (opts.onClick) btn.addEventListener('click', opts.onClick);
-      node.appendChild(btn);
-    }
-    return node;
   }
 
-  // ---- Skip-to-main link ---------------------------------------------------
-  (function addSkipLink() {
-    if (document.querySelector('.skip-link')) return;
-    var a = document.createElement('a');
-    a.className = 'skip-link';
-    a.href = '#main';
-    a.textContent = 'İçeriğe atla / Skip to content';
-    document.body.insertBefore(a, document.body.firstChild);
-  })();
+  async function requireSession() {
+    const me = await whoami();
+    if (me) return me;
+    const target = location.pathname + location.search;
+    const url = LOGIN_URL + (target && target !== LOGIN_URL ? "?next=" + encodeURIComponent(target) : "");
+    location.replace(url);
+    return null;
+  }
 
-  // ---- Public surface ------------------------------------------------------
+  async function signOut() {
+    try {
+      await fetch(API_BASE + "/auth/logout", {
+        method: "POST",
+        credentials: "same-origin",
+      });
+    } catch (_) {
+      // ignore — we're heading out anyway
+    }
+    location.replace(LOGIN_URL);
+  }
+
+  async function fetchJSON(path, opts) {
+    const o = Object.assign({ credentials: "same-origin", headers: {} }, opts || {});
+    if (o.body && typeof o.body !== "string" && !(o.body instanceof FormData)) {
+      o.headers["Content-Type"] = "application/json";
+      o.body = JSON.stringify(o.body);
+    }
+    const r = await fetch(API_BASE + path, o);
+    const text = await r.text();
+    let data = null;
+    try { data = text ? JSON.parse(text) : null; } catch (_) { data = null; }
+    if (r.status === 401) {
+      const target = location.pathname + location.search;
+      const url = LOGIN_URL + (target && target !== LOGIN_URL ? "?next=" + encodeURIComponent(target) : "");
+      location.replace(url);
+      throw new Error("session expired");
+    }
+    if (!r.ok) {
+      const detail = (data && (data.detail || data.error)) || r.statusText || "request failed";
+      throw new Error(typeof detail === "string" ? detail : JSON.stringify(detail));
+    }
+    return data;
+  }
+
+  async function fetchAdmin(path, opts) {
+    return fetchJSON("/admin/" + String(path).replace(/^\//, ""), opts);
+  }
+
+  function ensureToastHost() {
+    let host = document.getElementById("fa-toast-host");
+    if (!host) {
+      host = document.createElement("div");
+      host.id = "fa-toast-host";
+      host.className = "fa-toast-host";
+      document.body.appendChild(host);
+    }
+    return host;
+  }
+  function showToast(msg, kind) {
+    const host = ensureToastHost();
+    const el = document.createElement("div");
+    el.className = "fa-toast fa-toast-" + (kind || "info");
+    el.textContent = msg;
+    host.appendChild(el);
+    requestAnimationFrame(() => el.classList.add("fa-toast-in"));
+    setTimeout(() => {
+      el.classList.remove("fa-toast-in");
+      el.classList.add("fa-toast-out");
+      setTimeout(() => el.remove(), 200);
+    }, 3500);
+  }
+
+  function fmtNum(n) {
+    if (n === null || n === undefined || Number.isNaN(Number(n))) return "—";
+    return Number(n).toLocaleString("en-US", { maximumFractionDigits: 4 });
+  }
+  function fmtDate(iso) {
+    if (!iso) return "—";
+    try {
+      const d = new Date(iso);
+      if (Number.isNaN(d.getTime())) return "—";
+      return d.toLocaleString("tr-TR", { dateStyle: "short", timeStyle: "short" });
+    } catch (_) {
+      return "—";
+    }
+  }
+  function fmtMoney(n, ccy) {
+    const v = Number(n);
+    if (!Number.isFinite(v)) return "—";
+    return v.toLocaleString("en-US", { style: "currency", currency: ccy || "USD" });
+  }
+
   window.FA = window.FA || {};
-  window.FA.ui = {
-    applyTheme:      applyTheme,
-    toggleTheme:     toggleTheme,
-    getTheme:        getTheme,
-    getAdminToken:   getAdminToken,
-    setAdminToken:   setAdminToken,
-    fetchAdmin:      fetchAdmin,
-    toast:           toast,
-    emptyState:      emptyState,
-  };
+  window.FA.requireSession = requireSession;
+  window.FA.session = { whoami, signOut };
+  window.FA.api = { fetchJSON, fetchAdmin };
+  window.FA.toast = { show: showToast };
+  window.FA.format = { num: fmtNum, date: fmtDate, money: fmtMoney };
 
-  // ---- Theme toggle button hookup ------------------------------------------
-  document.addEventListener('click', function (e) {
-    var btn = e.target.closest('[data-theme-toggle]');
-    if (!btn) return;
-    e.preventDefault();
-    var next = toggleTheme();
-    btn.setAttribute('aria-pressed', next === 'dark' ? 'true' : 'false');
-    btn.setAttribute('title', next === 'dark'
-      ? 'Karanlık mod / Dark mode (tıklayın → aydınlık)'
-      : 'Aydınlık mod / Light mode (tıklayın → karanlık)');
-  });
-
-  // ---- Keyboard shortcuts (Cmd+K + G + letter) ----------------------------
-  var CMD_ACTIONS = [
-    { label: 'Genel Bakış / Overview', href: '/', hint: 'G O' },
-    { label: 'Kararlar / Decisions', href: '/decisions.html', hint: 'G D' },
-    { label: 'Portföy / Portfolio', href: '/portfolio.html', hint: 'G P' },
-    { label: 'Uyarılar / Alerts', href: '/alerts.html', hint: 'G A' },
-    { label: 'Sistem Sağlığı / System Health', href: '/system-health.html', hint: 'G S' },
-    { label: 'Admin', href: '/admin.html', hint: 'G .' },
-    { label: 'Ayarlar / Settings', href: '/settings.html', hint: 'G ,' },
-  ];
-  function openCommandBar() {
-    if (document.querySelector('.command-bar')) return;
-    var overlay = document.createElement('div');
-    overlay.className = 'command-bar';
-    overlay.setAttribute('role', 'dialog');
-    overlay.setAttribute('aria-modal', 'true');
-    overlay.setAttribute('aria-label', 'Komut paleti / Command palette');
-    overlay.innerHTML =
-      '<div class="cmd-panel">' +
-        '<input type="text" placeholder="Bir sayfa veya eylem yazın… / Type a page or action…" aria-label="Search">' +
-        '<ul role="listbox"></ul>' +
-      '</div>';
-    var input = overlay.querySelector('input');
-    var list  = overlay.querySelector('ul');
-    function render(filter) {
-      list.innerHTML = '';
-      var f = (filter || '').toLowerCase();
-      var matches = CMD_ACTIONS.filter(function (a) {
-        return !f || a.label.toLowerCase().indexOf(f) >= 0;
-      });
-      matches.slice(0, 10).forEach(function (a, i) {
-        var li = document.createElement('li');
-        li.setAttribute('role', 'option');
-        li.setAttribute('data-href', a.href);
-        if (i === 0) li.setAttribute('aria-selected', 'true');
-        li.innerHTML =
-          '<span>' + a.label + '</span>' +
-          '<span class="cmd-hint">' + (a.hint || '') + '</span>';
-        li.addEventListener('click', function () { window.location.href = a.href; });
-        list.appendChild(li);
-      });
-      if (matches.length === 0) {
-        var li = document.createElement('li');
-        li.style.color = 'var(--muted)';
-        li.style.cursor = 'default';
-        li.textContent = 'Eşleşen sonuç yok / No matches';
-        list.appendChild(li);
-      }
-    }
-    render('');
-    overlay.addEventListener('click', function (e) {
-      if (e.target === overlay) close();
-    });
-    function close() {
-      overlay.remove();
-      document.removeEventListener('keydown', onKey);
-    }
-    function onKey(e) {
-      if (e.key === 'Escape') { e.preventDefault(); close(); }
-      if (e.key === 'Enter') {
-        var sel = list.querySelector('li[aria-selected="true"]');
-        if (sel) window.location.href = sel.getAttribute('data-href');
-      }
-    }
-    input.addEventListener('input', function () { render(input.value); });
-    input.addEventListener('keydown', function (e) {
-      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-        e.preventDefault();
-        var items = list.querySelectorAll('li[data-href]');
-        if (!items.length) return;
-        var idx = -1;
-        items.forEach(function (it, i) {
-          if (it.getAttribute('aria-selected') === 'true') idx = i;
-          it.removeAttribute('aria-selected');
-        });
-        if (e.key === 'ArrowDown') idx = Math.min(items.length - 1, idx + 1);
-        else                       idx = Math.max(0, idx - 1);
-        items[idx].setAttribute('aria-selected', 'true');
-        items[idx].scrollIntoView({ block: 'nearest' });
-      }
-    });
-    document.addEventListener('keydown', onKey);
-    document.body.appendChild(overlay);
-    setTimeout(function () { input.focus(); }, 10);
-  }
-
-  var _gArmed = false;
-  var _gArmedAt = 0;
-  document.addEventListener('keydown', function (e) {
-    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
-      e.preventDefault();
-      openCommandBar();
-      return;
-    }
-    var t = e.target;
-    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) {
-      return;
-    }
-    if (e.key.toLowerCase() === 'g' && !_gArmed) {
-      _gArmed = true;
-      _gArmedAt = Date.now();
-      setTimeout(function () { _gArmed = false; }, 1500);
-      return;
-    }
-    if (_gArmed && Date.now() - _gArmedAt < 1500) {
-      var map = {
-        'o': '/', 'd': '/decisions.html', 'p': '/portfolio.html',
-        'a': '/alerts.html', 's': '/system-health.html',
-        ',': '/settings.html', '.': '/admin.html',
-      };
-      var dest = map[e.key.toLowerCase()];
-      if (dest) {
-        e.preventDefault();
-        _gArmed = false;
-        window.location.href = dest;
-      }
+  document.addEventListener("DOMContentLoaded", () => {
+    if (document.body && document.body.dataset && document.body.dataset.requireSession !== undefined) {
+      requireSession();
     }
   });
 })();

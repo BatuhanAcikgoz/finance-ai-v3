@@ -253,7 +253,7 @@
   function loadSettings() {
     var $raw = $('#settings-raw');
     if ($raw) $raw.textContent = 'Yükleniyor… / Loading…';
-    return fetch('/api/v1/settings/', { headers: { 'Accept': 'application/json' } })
+    return fetch('/api/v1/settings/', { credentials: 'same-origin', headers: { 'Accept': 'application/json' } })
       .then(function (res) {
         if (!res.ok) throw new Error('HTTP ' + res.status);
         return res.json();
@@ -270,6 +270,7 @@
   function saveSettings(payload) {
     return fetch('/api/v1/settings/', {
       method: 'PATCH',
+      credentials: 'same-origin',
       headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     }).then(function (res) {

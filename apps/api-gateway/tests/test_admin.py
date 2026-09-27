@@ -13,6 +13,7 @@ import main as main_module
 
 ADMIN_TOKEN = "dev_admin_token_change_me"
 HEADERS = {"X-Admin-Token": ADMIN_TOKEN}
+AUTH_HEADERS = {"Authorization": "Bearer session-test-token"}  # used by tests that pre-seed a session row
 
 
 # ---------------------------------------------------------------------------
@@ -169,7 +170,25 @@ def fake_db() -> _FakeDB:
 
 @pytest.fixture
 async def client(fake_db, monkeypatch):
-    """ASGI client with DB helpers wired to an in-memory store."""
+    """ASGI client with DB helpers wired to an in-memory store.
+
+    Authentication is patched so both branches of ``_require_admin``
+    accept the request: a fake session is injected for the
+    session-cookie / Bearer path, AND the legacy X-Admin-Token path is
+    exercised by the ADMIN_TOKEN constant below.
+    """
+    from unittest.mock import AsyncMock, patch
+    from routes import admin as admin_module
+
+    fake_session = {
+        "user_id": "00000000-0000-0000-0000-000000000001",
+        "username": "test-admin",
+        "role": "admin",
+        "disabled_at": None,
+        "expires_at": datetime.now(timezone.utc).replace(year=2099),
+        "session_id": "00000000-0000-0000-0000-000000000002",
+    }
+
     monkeypatch.setattr(db, "fetch", _make_fake_fetch(fake_db))
     monkeypatch.setattr(db, "fetchrow", _make_fake_fetchrow(fake_db))
     monkeypatch.setattr(db, "execute", _make_fake_executor(fake_db))
@@ -178,9 +197,14 @@ async def client(fake_db, monkeypatch):
         return True
     monkeypatch.setattr(db, "is_available", is_available)
 
-    transport = ASGITransport(app=main_module.app)
-    async with AsyncClient(transport=transport, base_url="http://test") as c:
-        yield c
+    # Patch the session dependency in the admin module so callers using
+    # the new auth path get a fixed identity. The legacy X-Admin-Token
+    # path is exercised by sending the ADMIN_TOKEN constant below, so the
+    # test suite covers both auth branches.
+    with patch.object(admin_module, "_current_session", AsyncMock(return_value=fake_session)):
+        transport = ASGITransport(app=main_module.app)
+        async with AsyncClient(transport=transport, base_url="http://test") as c:
+            yield c
 
 
 # ---------------------------------------------------------------------------
