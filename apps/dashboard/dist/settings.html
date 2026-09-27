@@ -112,13 +112,39 @@
         <form class="settings-form" id="settings-form" autocomplete="off">
 
           <div class="settings-row">
-            <label class="settings-label" for="set-provider">LLM Sağlayıcı / Provider</label>
-            <input type="text" id="set-provider" name="llm.provider" placeholder="openai" />
+            <label class="settings-label" for="set-provider">
+              LLM Sağlayıcı / Provider
+              <span class="settings-hint" id="set-provider-hint">Seçilebilir — listeden bir sağlayıcı seçin.</span>
+            </label>
+            <select id="set-provider" name="llm.provider" aria-describedby="set-provider-hint"></select>
           </div>
 
           <div class="settings-row">
-            <label class="settings-label" for="set-model">LLM Model</label>
-            <input type="text" id="set-model" name="llm.model" placeholder="gpt-4o" />
+            <label class="settings-label" for="set-model">
+              LLM Model
+              <span class="settings-hint" id="set-model-hint">Sağlayıcıya göre filtrelenir. İsterseniz elle yazabilirsiniz.</span>
+            </label>
+            <input
+              type="text"
+              id="set-model"
+              name="llm.model"
+              list="set-model-list"
+              placeholder="örn. gpt-4o / MiniMax-M3"
+              autocomplete="off"
+              aria-describedby="set-model-hint" />
+            <datalist id="set-model-list"></datalist>
+          </div>
+
+          <div class="settings-row">
+            <label class="settings-label" for="set-api-format">
+              API Formatı / API Format
+              <span class="settings-hint">İstek biçimi. OpenAI-uyumlu sağlayıcılar "openai" kullanır.</span>
+            </label>
+            <select id="set-api-format" name="llm.api_format">
+              <option value="openai">openai (OpenAI ChatCompletion)</option>
+              <option value="anthropic">anthropic (Anthropic Messages)</option>
+              <option value="gemini">gemini (Google Generative Language)</option>
+            </select>
           </div>
 
           <div class="settings-row">

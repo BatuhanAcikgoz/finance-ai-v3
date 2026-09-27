@@ -31,8 +31,8 @@ async def test_get_settings_returns_defaults(client, monkeypatch):
     assert body["user"] == "dev"
     assert body["notify"]["email"] is True
     assert body["risk"]["max_position_pct"] == 0.10
-    assert body["llm"]["provider"] == "openai"
-    assert body["llm"]["model"] == "gpt-4o"
+    assert body["llm"]["provider"] == "minimax"
+    assert body["llm"]["model"] == "minimax-m3"
     assert body["llm"]["monthly_budget_usd"] == 500
     assert "bloomberght" in body["sources"]["news"]
 
@@ -66,5 +66,5 @@ async def test_patch_settings_merges_and_persists(client, monkeypatch):
     assert body["llm"]["monthly_budget_usd"] == 250
     # Untouched fields preserved from defaults
     assert body["risk"]["max_sector_pct"] == 0.30
-    assert body["llm"]["provider"] == "openai"
+    assert body["llm"]["provider"] == "minimax"
     assert body["notify"]["email"] is True

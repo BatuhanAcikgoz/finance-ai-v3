@@ -119,13 +119,118 @@
     return out;
   }
 
+  // -------- PROVIDER DROPDOWN -------------------------------------------
+  // Models are provider-specific, so we rebuild the <datalist> every time
+  // the user picks a new provider. The model <input> stays a free-text
+  // input backed by that <datalist> — user can still type any custom
+  // model string (e.g. a private deployment of MiniMax-m3 behind a
+  // corporate proxy).
+  var KNOWN_PROVIDERS = []; // populated by GET /v1/settings
+  var currentProvider = null;
+  function rebuildProviderDropdown(select, providers, selectedId) {
+    select.innerHTML = '';
+    // Group: official (marked via api_format === "openai" / built-ins) on
+    // top, others below. With only ~7 entries there's no real need for
+    // <optgroup>s; a flat list with separators keeps the search simple.
+    providers.forEach(function (p) {
+      var opt = document.createElement('option');
+      opt.value = p.id;
+      opt.textContent = p.label + '  ·  ' + (p.api_format || 'openai');
+      opt.dataset.apiFormat = p.api_format || 'openai';
+      opt.dataset.baseUrl    = p.base_url || '';
+      opt.dataset.models     = (p.models || []).join(',');
+      opt.dataset.defaultModel = p.default_model || '';
+      opt.dataset.notes      = p.notes || '';
+      select.appendChild(opt);
+    });
+    if (selectedId) {
+      select.value = selectedId;
+    }
+    currentProvider = select.value || null;
+  }
+  function rebuildModelDatalist(datalist, providerId) {
+    datalist.innerHTML = '';
+    var provider = KNOWN_PROVIDERS.find(function (p) { return p.id === providerId; });
+    if (!provider || !provider.models) return;
+    provider.models.forEach(function (m) {
+      var opt = document.createElement('option');
+      opt.value = m;
+      datalist.appendChild(opt);
+    });
+    // Mirror provider notes in the helper text so the user knows what
+    // they're picking.
+    var hint = document.getElementById('set-provider-hint');
+    if (hint && provider.notes) {
+      hint.textContent = provider.notes +
+        (provider.base_url ? '  ·  base: ' + provider.base_url : '');
+    } else if (hint) {
+      hint.textContent = 'Seçilebilir — listeden bir sağlayıcı seçin.';
+    }
+  }
+  function syncApiFormat(select, providerId) {
+    var provider = KNOWN_PROVIDERS.find(function (p) { return p.id === providerId; });
+    if (!provider) return;
+    var apiFmt = document.getElementById('set-api-format');
+    if (!apiFmt) return;
+    if (Array.from(apiFmt.options).some(function (o) { return o.value === (provider.api_format || 'openai'); })) {
+      apiFmt.value = provider.api_format || 'openai';
+    }
+  }
+  function onProviderChange() {
+    var sel = document.getElementById('set-provider');
+    var datalist = document.getElementById('set-model-list');
+    var modelInput = document.getElementById('set-model');
+    if (!sel) return;
+    currentProvider = sel.value;
+    rebuildModelDatalist(datalist, currentProvider);
+    syncApiFormat(null, currentProvider);
+    // Auto-fill the model's default value when the field is empty or
+    // still shows the OLD provider's default. This avoids leaving
+    // provider=minimax + model=gpt-4o after a quick provider swap.
+    var provider = KNOWN_PROVIDERS.find(function (p) { return p.id === currentProvider; });
+    if (provider && modelInput) {
+      var knownModels = (provider.models || []).map(function (m) { return m.toLowerCase(); });
+      var currentModel = (modelInput.value || '').toLowerCase();
+      if (!modelInput.value || knownModels.indexOf(currentModel) === -1) {
+        modelInput.value = provider.default_model || (provider.models || [])[0] || '';
+      }
+    }
+  }
+
   function populateForm(data) {
     if (!data || typeof data !== 'object') return;
     var form = $('#settings-form');
     if (!form) return;
+
+    // First, the provider registry (used by the dropdown + datalist).
+    if (Array.isArray(data.providers)) {
+      KNOWN_PROVIDERS = data.providers;
+      var sel = form.querySelector('#set-provider');
+      if (sel) rebuildProviderDropdown(sel, data.providers, (data.llm && data.llm.provider) || '');
+    }
+
     if (data.llm) {
-      if (data.llm.provider)              form.querySelector('#set-provider').value = data.llm.provider;
-      if (data.llm.model)                 form.querySelector('#set-model').value    = data.llm.model;
+      var provSel = form.querySelector('#set-provider');
+      if (provSel) provSel.value = (data.llm.provider || provSel.value || '');
+      currentProvider = provSel.value || null;
+
+      // Fill model + datalist for the active provider.
+      var datalist = form.querySelector('#set-model-list');
+      if (datalist) rebuildModelDatalist(datalist, currentProvider);
+      if (data.llm.model) form.querySelector('#set-model').value = data.llm.model;
+
+      // api_format: only set if the saved value is one we know; otherwise
+      // let syncApiFormat() pick from the current provider.
+      var apiFmt = form.querySelector('#set-api-format');
+      if (apiFmt) {
+        var savedFmt = data.llm.api_format ||
+          (KNOWN_PROVIDERS.find(function (p) { return p.id === currentProvider; }) || {}).api_format ||
+          'openai';
+        if (Array.from(apiFmt.options).some(function (o) { return o.value === savedFmt; })) {
+          apiFmt.value = savedFmt;
+        }
+      }
+
       if (data.llm.monthly_budget_usd != null) form.querySelector('#set-budget').value = data.llm.monthly_budget_usd;
     }
     if (data.risk) {
@@ -181,9 +286,34 @@
     if (!form) return;
     var $reload = $('#settings-reload');
 
+    // Provider change → refresh the model <datalist> + sync the API format.
+    var provSel = form.querySelector('#set-provider');
+    if (provSel) {
+      provSel.addEventListener('change', onProviderChange);
+    }
+
     form.addEventListener('submit', function (e) {
       e.preventDefault();
       var payload = readFormIntoObject();
+
+      // The form has llm.api_format as a sibling <select>, but readFormIntoObject
+      // only handles dotted names. Add it explicitly so PATCH round-trips it.
+      var apiFmtEl = form.querySelector('#set-api-format');
+      if (apiFmtEl && apiFmtEl.value && (!payload.llm || Object.keys(payload.llm).length)) {
+        payload.llm = payload.llm || {};
+        payload.llm.api_format = apiFmtEl.value;
+      }
+      // Same treatment for provider / model in case the user touched them.
+      if (provSel && provSel.value && (!payload.llm || Object.keys(payload.llm).length)) {
+        payload.llm = payload.llm || {};
+        payload.llm.provider = provSel.value;
+      }
+      var modelEl = form.querySelector('#set-model');
+      if (modelEl && modelEl.value && (!payload.llm || Object.keys(payload.llm).length)) {
+        payload.llm = payload.llm || {};
+        payload.llm.model = modelEl.value;
+      }
+
       var $raw = $('#settings-raw');
       if ($raw) $raw.textContent = 'Kaydediliyor… / Saving…';
 
@@ -192,6 +322,9 @@
           window.FA.ui.toast('Kaydedildi / Saved');
           if ($raw) $raw.textContent = JSON.stringify(r.body, null, 2);
           populateForm(r.body || {});
+        } else if (r.status === 400 && r.body && r.body.error === 'unknown_provider') {
+          window.FA.ui.toast('Bilinmeyen sağlayıcı / Unknown provider', { type: 'error' });
+          if ($raw) $raw.textContent = 'HTTP 400 — ' + (r.body.detail || JSON.stringify(r.body));
         } else {
           window.FA.ui.toast('Hata / Error (' + r.status + ')');
           if ($raw) $raw.textContent = 'HTTP ' + r.status + '\n' + (typeof r.body === 'string' ? r.body : JSON.stringify(r.body, null, 2));

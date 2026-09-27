@@ -1895,6 +1895,18 @@ footer .footer-row {
   font-size: 12px;
   font-weight: 600;
   color: var(--label-secondary);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.settings-form .settings-row .settings-hint {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--muted);
+  line-height: 1.35;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 .settings-form .settings-row .settings-value {
   font-family: ui-monospace, "SF Mono", Menlo, monospace;
@@ -1912,6 +1924,18 @@ footer .footer-row {
   font-size: 12px;
   font-family: inherit;
   width: 100%;
+  cursor: pointer;
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+.settings-form .settings-row select:hover,
+.settings-form .settings-row input:hover {
+  border-color: color-mix(in srgb, var(--label-secondary) 35%, transparent);
+}
+.settings-form .settings-row select:focus,
+.settings-form .settings-row input:focus {
+  outline: none;
+  border-color: var(--accent, #5e5ce6);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent, #5e5ce6) 18%, transparent);
 }
 @media (max-width: 720px) {
   .settings-form .settings-row { grid-template-columns: 1fr; }
