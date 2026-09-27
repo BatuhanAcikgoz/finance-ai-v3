@@ -1640,12 +1640,17 @@ footer .footer-row {
 
 .llm-key-row {
   display: grid;
-  grid-template-columns: 100px 1fr 1.5fr 110px 110px 1fr 110px 90px;
-  gap: 8px;
+  /* 7 cols: provider | model | masked key | last used | status | cost | actions */
+  grid-template-columns: 110px 1.2fr 1.4fr 110px 110px 1fr 130px;
+  gap: 10px;
   padding: 10px 12px;
   align-items: center;
   border-bottom: 1px solid var(--border);
   font-size: 12px;
+}
+.llm-key-row.header {
+  /* Header has the same column structure but stretches to fill. */
+  grid-template-columns: 110px 1.2fr 1.4fr 110px 110px 1fr 130px;
 }
 .llm-key-row.header {
   font-size: 10px;
@@ -2487,3 +2492,85 @@ main { animation: page-fade-in 220ms var(--ease-glide); }
   padding: 1px 4px;
   border-radius: 3px;
 }
+
+/* =========================================================================
+ * LLM KEY INLINE EDIT / DELETE BARS
+ * Rendered as a full-width row beneath the data row so the existing
+ * 8-column grid layout keeps working instead of getting reflowed by
+ * a leftover inline element inside the actions cell.
+ * ========================================================================= */
+.llm-key-delete-bar,
+.llm-key-edit-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  margin: 4px 0 8px;
+  background: rgba(255, 80, 80, 0.10);
+  border: 1px solid rgba(255, 80, 80, 0.40);
+  border-left: 3px solid var(--danger, #ff5e5e);
+  border-radius: 8px;
+  font-size: 12px;
+  color: var(--label);
+  animation: llm-bar-in 0.18s ease-out;
+}
+.llm-key-edit-bar {
+  background: rgba(94, 92, 230, 0.10);
+  border-color: rgba(94, 92, 230, 0.40);
+  border-left-color: var(--accent, #5e5ce6);
+}
+@keyframes llm-bar-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: none; }
+}
+.llm-key-delete-bar .bar-text,
+.llm-key-edit-bar .bar-text {
+  flex: 1 1 280px;
+  min-width: 240px;
+  font-size: 12px;
+  line-height: 1.45;
+}
+.llm-key-delete-bar .bar-text strong,
+.llm-key-edit-bar  .bar-text strong {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  color: var(--label);
+  margin-right: 4px;
+}
+.llm-key-delete-bar .bar-text em,
+.llm-key-edit-bar  .bar-text em {
+  color: var(--muted);
+  font-style: normal;
+}
+.llm-key-delete-bar .bar-actions,
+.llm-key-edit-bar .bar-fields {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+.llm-key-delete-bar .btn.btn-danger {
+  background: linear-gradient(135deg, #ff5e5e 0%, #d63a3a 100%);
+  border-color: rgba(255, 80, 80, 0.6);
+  color: #fff;
+  box-shadow: 0 2px 8px -2px rgba(255, 80, 80, 0.45);
+}
+.llm-key-delete-bar .btn.btn-danger:hover:not(:disabled) {
+  background: linear-gradient(135deg, #ff7e7e 0%, #e35050 100%);
+  transform: translateY(-1px);
+}
+.llm-key-edit-bar input[type="password"],
+.llm-key-edit-bar input[type="text"] {
+  flex: 1 1 220px;
+  min-width: 200px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 10px;
+  color: var(--label);
+  font-size: 12px;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+}
+.llm-key-edit-bar input:focus { outline: 2px solid var(--accent, #5e5ce6); outline-offset: 1px; }
+.llm-key-edit-bar .btn.btn-show { padding: 4px 8px; font-size: 12px; }

@@ -181,12 +181,11 @@
       +     esc(statusLabel(k.status)) + '</div>'
       +   '<div>' + esc(cost) + '</div>'
       +   '<div class="actions">'
-      +     '<button class="btn" data-action="edit"   type="button">Düzenle / Edit</button>'
-      +     '<button class="btn" data-action="test"   type="button">Test</button>'
-      +     '<button class="btn" data-action="delete" type="button">Sil / Delete</button>'
-      +   '</div>'
-      +   '<div></div>'
-      + '</div>';
+            +     '<button class="btn" data-action="edit"   type="button">Düzenle</button>'
+            +     '<button class="btn" data-action="test"   type="button">Test</button>'
+            +     '<button class="btn" data-action="delete" type="button">Sil</button>'
+            +   '</div>'
+          + '</div>';
   }
 
   function loadKeys() {
@@ -236,50 +235,59 @@
 
   function editKey(row) {
     var v = readKeyFromRow(row);
-    // Inline confirm for the api-key field — opens a small input next to
-    // the row instead of a window.prompt() that browsers may block.
-    var inline = row.querySelector('[data-edit-apikey]');
-    if (inline) inline.remove();
-    var wrap = document.createElement('div');
-    wrap.setAttribute('data-edit-apikey', '');
-    wrap.style.cssText = 'position:relative;flex:1;display:flex;gap:6px;align-items:center;';
-    var inp = document.createElement('input');
-    inp.type = 'password';
-    inp.placeholder = 'Yeni API anahtarı / New key (boş = değiştirme)';
-    inp.style.cssText = 'flex:1;background:rgba(0,0,0,0.3);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--label);font-size:12px;font-family:ui-monospace;';
-    var save = document.createElement('button');
-    save.type = 'button';
-    save.className = 'btn btn-primary';
-    save.style.cssText = 'padding:4px 10px;font-size:12px;';
-    save.textContent = '💾';
-    save.title = 'Kaydet / Save';
-    var cancel = document.createElement('button');
-    cancel.type = 'button';
-    cancel.className = 'btn';
-    cancel.style.cssText = 'padding:4px 10px;font-size:12px;';
-    cancel.textContent = '✕';
-    cancel.title = 'İptal / Cancel';
-    function close() { wrap.remove(); }
+    var rowIdx = row.getAttribute('data-idx');
+    // Toggle: if an edit bar already exists for this row, remove it.
+    var existing = row.parentNode.querySelector('[data-edit-apikey-row="' + rowIdx + '"]');
+    if (existing) { existing.remove(); return; }
+
+    var bar = document.createElement('div');
+    bar.className = 'llm-key-edit-bar';
+    bar.setAttribute('data-edit-apikey-row', String(rowIdx));
+    bar.innerHTML =
+      '<span class="bar-text">' +
+        '<strong>' + esc(v.provider) + '/' + esc(v.model) + '</strong> için yeni API anahtarı gir / ' +
+        'enter a new API key. Boş bırakırsan değişmez / Leave blank to keep current.' +
+      '</span>' +
+      '<span class="bar-fields">' +
+        '<input type="password" data-apikey-input placeholder="sk-…" autocomplete="off" />' +
+        '<button type="button" class="btn btn-show" data-show aria-label="Göster">👁</button>' +
+        '<button type="button" class="btn" data-no>İptal / Cancel</button>' +
+        '<button type="button" class="btn btn-primary" data-save>Kaydet / Save</button>' +
+      '</span>';
+
+    var inp = bar.querySelector('[data-apikey-input]');
+    var show = bar.querySelector('[data-show]');
+    var no = bar.querySelector('[data-no]');
+    var save = bar.querySelector('[data-save]');
+    no.addEventListener('click', function () { bar.remove(); });
     save.addEventListener('click', function () {
       var body = Object.assign({}, v, inp.value ? { api_key: inp.value } : {});
+      save.disabled = true;
       adminSend('PUT', 'llm/keys', body).then(function (res) {
-        if (!res.ok) { window.FA.ui.toast('Kayıt başarısız / Save failed (' + res.status + ')', { type: 'error' }); return; }
+        if (!res.ok) {
+          window.FA.ui.toast('Kayıt başarısız / Save failed (' + res.status + ')', { type: 'error' });
+          save.disabled = false;
+          return;
+        }
         window.FA.ui.toast('Anahtar güncellendi / Key updated');
-        close();
+        bar.remove();
         loadKeys();
-      }).catch(function () { window.FA.ui.toast('Ağ hatası / Network error', { type: 'error' }); });
+      }).catch(function () {
+        window.FA.ui.toast('Ağ hatası / Network error', { type: 'error' });
+        save.disabled = false;
+      });
     });
-    cancel.addEventListener('click', close);
+    show.addEventListener('click', function () {
+      if (inp.type === 'password') { inp.type = 'text'; show.textContent = '🙈'; }
+      else                          { inp.type = 'password'; show.textContent = '👁'; }
+    });
     inp.addEventListener('keydown', function (e) {
       if (e.key === 'Enter') { e.preventDefault(); save.click(); }
-      if (e.key === 'Escape') { e.preventDefault(); close(); }
+      if (e.key === 'Escape') { e.preventDefault(); bar.remove(); }
     });
-    wrap.appendChild(inp);
-    wrap.appendChild(save);
-    wrap.appendChild(cancel);
-    var actionsCell = row.querySelector('[data-cell="actions"]') || row.lastElementChild;
-    if (actionsCell) actionsCell.appendChild(wrap);
-    inp.focus();
+    if (row.nextSibling) row.parentNode.insertBefore(bar, row.nextSibling);
+    else row.parentNode.appendChild(bar);
+    setTimeout(function () { inp.focus(); }, 30);
   }
 
   function testKey(row) {
@@ -295,31 +303,49 @@
   }
 
   function deleteKey(row) {
-    var v = readKeyFromRow(row);
+      var v = readKeyFromRow(row);
       // Inline confirmation — replaces window.confirm() which browsers
-      // commonly disable and which can't be styled.
-      var existing = row.querySelector('[data-delete-confirm]');
+      // commonly disable and which can't be styled. We render the bar in
+      // its own grid row beneath the data row so the existing actions cell
+      // is replaced (not stacked).
+      var existing = row.parentNode.querySelector('[data-delete-confirm-row="' + row.getAttribute('data-idx') + '"]');
       if (existing) { existing.remove(); return; }
+
       var bar = document.createElement('div');
-      bar.setAttribute('data-delete-confirm', '');
-      bar.style.cssText = 'display:flex;gap:6px;align-items:center;padding:4px 8px;background:rgba(255,80,80,0.10);border:1px solid rgba(255,80,80,0.35);border-radius:6px;margin-top:4px;';
+      bar.className = 'llm-key-delete-bar';
+      bar.setAttribute('data-delete-confirm-row', String(row.getAttribute('data-idx')));
       bar.innerHTML =
-        '<span style="font-size:12px;flex:1;">' + v.provider + '/' + v.model + ' silinsin mi?</span>' +
-        '<button type="button" class="btn" style="padding:3px 8px;font-size:11px;" data-no>İptal</button>' +
-        '<button type="button" class="btn btn-primary" style="padding:3px 8px;font-size:11px;background:#ff5e5e;border-color:#ff5e5e;" data-yes>Sil</button>';
-      var actionsCell = row.querySelector('[data-cell="actions"]') || row.lastElementChild;
-      actionsCell.appendChild(bar);
-      bar.querySelector('[data-no]').addEventListener('click', function () { bar.remove(); });
+        '<span class="bar-text">' +
+          '<strong>' + esc(v.provider) + '/' + esc(v.model) + '</strong> ' +
+          'silinsin mi?  <em>Bu işlem geri alınamaz / This cannot be undone.</em>' +
+        '</span>' +
+        '<span class="bar-actions">' +
+          '<button type="button" class="btn" data-no>İptal / Cancel</button>' +
+          '<button type="button" class="btn btn-danger" data-yes>' +
+            '<span aria-hidden="true">⚠</span> Sil / Delete' +
+          '</button>' +
+        '</span>';
+      bar.querySelector('[data-no]').addEventListener('click', function () {
+        bar.remove();
+      });
       bar.querySelector('[data-yes]').addEventListener('click', function () {
         bar.remove();
         adminSend('DELETE', 'llm/keys', { provider: v.provider, model: v.model })
           .then(function (res) {
-            if (!res.ok) { window.FA.ui.toast('Silme başarısız / Delete failed (' + res.status + ')', { type: 'error' }); return; }
+            if (!res.ok) {
+              window.FA.ui.toast('Silme başarısız / Delete failed (' + res.status + ')', { type: 'error' });
+              return;
+            }
             window.FA.ui.toast('Anahtar silindi / Key deleted');
             loadKeys();
           })
-          .catch(function () { window.FA.ui.toast('Ağ hatası / Network error', { type: 'error' }); });
+          .catch(function () {
+            window.FA.ui.toast('Ağ hatası / Network error', { type: 'error' });
+          });
       });
+      // Insert below the row, spanning the whole table width.
+      if (row.nextSibling) row.parentNode.insertBefore(bar, row.nextSibling);
+      else row.parentNode.appendChild(bar);
     }
 
   function bindKeysControls() {
