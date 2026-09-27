@@ -6,7 +6,7 @@
   <meta name="description" content="Yönetim / Admin — Finance AI V3 LLM keys, providers, system, audit." />
   <title>Yönetim / Admin — Finance AI V3</title>
   <link rel="icon" type="image/svg+xml" href="favicon.svg" />
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="styles.css?v=2026.09.27c" />
 
   <script>
     // Pre-paint theme bootstrap — runs before any CSS paints.
@@ -74,11 +74,16 @@
           <input type="password" id="admin-token" placeholder="X-Admin-Token (örn. dev_admin_token_change_me)" autocomplete="off" />
           <button class="btn" id="admin-token-save" type="button">Kaydet / Save</button>
           <button class="btn" id="admin-token-clear" type="button">Temizle / Clear</button>
+          <button class="btn" id="admin-token-show" type="button" aria-label="Göster / Show">👁</button>
           <button class="btn btn-primary" id="admin-test" type="button">Bağlantıyı Test Et / Test Connection</button>
           <span class="hint">
             Bu anahtar tarayıcıda <code>localStorage['finance-ai.admin_token']</code> altında saklanır.
             Tüm <code>/api/v1/admin/*</code> çağrılarına <code>X-Admin-Token</code> başlığı otomatik eklenir.
             <em>Stored only in your browser; never sent anywhere except api-gateway.</em>
+          </span>
+          <span class="dev-badge" id="admin-dev-badge" hidden>
+            Dev mode: default token otomatik ayarlandı / auto-filled.
+            <button type="button" id="admin-token-clear-once">Kaldır / Clear</button>
           </span>
         </div>
       </section>
@@ -238,7 +243,7 @@
   </div>
 
   
-  <script src="ui.js" defer></script>
-  <script src="admin.js" defer></script>
+  <script src="ui.js?v=2026.09.27c" defer></script>
+  <script src="admin.js?v=2026.09.27c" defer></script>
 </body>
 </html>

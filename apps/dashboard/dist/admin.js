@@ -99,12 +99,52 @@
     var $clear = $('#admin-token-clear');
     var $test  = $('#admin-test');
 
-    if ($input) $input.value = window.FA.ui.getAdminToken();
+    if ($input) {
+      // Auto-fill the dev token on first visit so the admin panel works
+      // out of the box. The user can clear it any time, and a different
+      // value will stick (localStorage keeps whatever they saved).
+      try {
+        if (!localStorage.getItem('finance-ai.admin_token')) {
+          $input.value = 'dev_admin_token_change_me';
+          // Save it immediately so subsequent XHR calls send the header.
+          window.FA.ui.setAdminToken('dev_admin_token_change_me');
+        } else {
+          $input.value = window.FA.ui.getAdminToken();
+        }
+      } catch (e) { $input.value = window.FA.ui.getAdminToken(); }
+    }
 
     if ($save) $save.addEventListener('click', function () {
       window.FA.ui.setAdminToken($input.value || '');
       window.FA.ui.toast('Token kaydedildi / Saved');
+      var badge = document.getElementById('admin-dev-badge');
+      if (badge) badge.hidden = true;
     });
+    var $show = $('#admin-token-show');
+    if ($show) $show.addEventListener('click', function () {
+      if ($input.type === 'password') {
+        $input.type = 'text';
+        $show.textContent = '🙈';
+      } else {
+        $input.type = 'password';
+        $show.textContent = '👁';
+      }
+    });
+    var $clearOnce = $('#admin-token-clear-once');
+    if ($clearOnce) $clearOnce.addEventListener('click', function () {
+      window.FA.ui.setAdminToken('');
+      $input.value = '';
+      var badge = document.getElementById('admin-dev-badge');
+      if (badge) badge.hidden = true;
+      window.FA.ui.toast('Token kaldırıldı / Token cleared');
+    });
+    // Show the dev-badge if we just auto-filled (no prior localStorage entry).
+    try {
+      if ($input.value === 'dev_admin_token_change_me' && window.FA.ui.getAdminToken() === 'dev_admin_token_change_me') {
+        var b = document.getElementById('admin-dev-badge');
+        if (b) b.hidden = false;
+      }
+    } catch (e) {}
     if ($clear) $clear.addEventListener('click', function () {
       $input.value = '';
       window.FA.ui.setAdminToken('');

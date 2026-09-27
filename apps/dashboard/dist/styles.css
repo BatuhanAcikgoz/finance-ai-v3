@@ -2434,3 +2434,56 @@ main { animation: page-fade-in 220ms var(--ease-glide); }
   padding: 14px 20px;
   border-top: 1px solid var(--border);
 }
+
+/* =========================================================================
+ * Admin dev-mode badge — appears next to the token bar when the dashboard
+ * auto-fills the dev-default token so the user knows their action will be
+ * tracked with the local-only dev credential.
+ * ========================================================================= */
+.dev-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  margin-top: 8px;
+  background: rgba(94, 92, 230, 0.10);
+  border: 1px solid rgba(94, 92, 230, 0.35);
+  border-radius: 8px;
+  font-size: 11px;
+  color: var(--label-secondary);
+}
+.dev-badge button {
+  background: transparent;
+  border: 1px solid currentColor;
+  color: inherit;
+  padding: 2px 8px;
+  font-size: 11px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.dev-badge button:hover { background: rgba(94, 92, 230, 0.18); }
+
+/* admin-token-bar grid refinement so the new "show" button doesn't push
+   the test connection off screen on narrow viewports. */
+.admin-token-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.admin-token-bar input {
+  flex: 1 1 200px;
+  min-width: 200px;
+}
+.admin-token-bar .hint {
+  flex: 1 1 100%;
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.admin-token-bar .hint code {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  background: rgba(255,255,255,0.05);
+  padding: 1px 4px;
+  border-radius: 3px;
+}
