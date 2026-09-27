@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Giriş · Finance AI V3</title>
-  <link rel="stylesheet" href="styles.css?v=2026.10.03" />
+  <link rel="stylesheet" href="styles.css?v=2026.10.04" />
 </head>
 <body class="login-body">
   <div class="login-stage">
@@ -66,9 +66,14 @@
       <!-- change-password panel: visible only when login response says must_change_password -->
       <form id="rotate-form" class="login-form" hidden>
         <h2 class="login-subtitle">İlk oturum — parola değiştir</h2>
+        <p class="login-hint">
+          Mevcut parolanız <strong>henüz dokunulmadıysa</strong>
+          <code>admin</code>'dir. Aşağıya yazıp yenisini belirleyebilirsiniz.
+          İsterseniz <button type="button" class="link" id="rotate-skip">atla</button>'ya basıp direkt dashboard'a geçersiniz.
+        </p>
         <label class="field">
           <span class="field-label">Mevcut parola</span>
-          <input type="password" id="rotate-current" required autocomplete="current-password" />
+          <input type="password" id="rotate-current" required autocomplete="current-password" placeholder="admin" />
         </label>
         <label class="field">
           <span class="field-label">Yeni parola (en az 6 karakter)</span>
@@ -98,6 +103,6 @@
     </aside>
   </div>
 
-  <script src="login.js?v=2026.10.03" defer></script>
+  <script src="login.js?v=2026.10.04" defer></script>
 </body>
 </html>

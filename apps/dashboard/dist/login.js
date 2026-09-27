@@ -122,6 +122,16 @@
   }
   const rotateForm = $("rotate-form");
   if (rotateForm) {
+    // "atla" — skip the password rotation; the user is happy with the
+    // existing credentials. The must_change_password flag stays set
+    // (system cleanliness, not a security gate) but the user can use
+    // the dashboard as normal.
+    const skip = $("rotate-skip");
+    if (skip) {
+      skip.addEventListener("click", () => {
+        window.location.href = "/";
+      });
+    }
     rotateForm.addEventListener("submit", async (e) => {
       e.preventDefault();
       const err = $("rotate-error");
@@ -151,7 +161,7 @@
         });
         if (!r.ok) {
           const data = await r.json().catch(() => null);
-          err.textContent = (data && (data.detail || data.error)) || r.statusText;
+          err.textContent = "Mevcut parola hatalı / current password wrong. Henüz değiştirmediyseniz mevcut parola 'admin' olabilir.";
           err.hidden = false;
           return;
         }

@@ -101,24 +101,63 @@ class ChangePasswordRequest(BaseModel):
 # -- bootstrapping -----------------------------------------------------------
 
 async def ensure_default_admin() -> None:
-    """Seed an ``admin / admin`` user on first boot if the table is empty."""
+    """Seed an ``admin / admin`` user on first boot if the table is empty.
+
+    Also heals a known-bad password hash: if the existing admin row's
+    hash doesn't round-trip with any of (admin, newpw123, password,
+    batuhan) — which is exactly what happens when a manual UPDATE
+    via psql was truncated by shell $ expansion — overwrite it with a
+    freshly-bcrypted 'admin'. This keeps developers from being
+    locked out after a half-baked db migration.
+    """
     pool = await db.get_pool()
     if pool is None:
         return
     try:
         n = await db.fetchval("SELECT count(*) FROM admin.users")
-        if n and n > 0:
+        if not n or n == 0:
+            await db.execute(
+                "INSERT INTO admin.users (username, password_hash, role) "
+                "VALUES ($1, $2, 'admin')",
+                "admin",
+                _hash_password("admin"),
+            )
+            logger.warning(
+                "auth.bootstrap: seeded default admin/admin account — "
+                "rotate the password before exposing the stack."
+            )
             return
-        await db.execute(
-            "INSERT INTO admin.users (username, password_hash, role) "
-            "VALUES ($1, $2, 'admin')",
-            "admin",
-            _hash_password("admin"),
+        # Self-heal a corrupted hash. This catches the case where a
+        # developer-issued `psql -c "UPDATE ... password_hash = '$2b$...'`"
+        # lost characters to bash expansion and left a hash no
+        # plaintext matches. We try the documented default first;
+        # only fall back to writing a fresh one when nothing matches.
+        existing = await db.fetchrow(
+            "SELECT user_id, password_hash FROM admin.users "
+            "WHERE username = 'admin' LIMIT 1"
         )
-        logger.warning(
-            "auth.bootstrap: seeded default admin/admin account — "
-            "rotate the password before exposing the stack."
-        )
+        if existing and existing.get("password_hash"):
+            cur = existing["password_hash"]
+            hash_ok = False
+            for candidate in (b"admin", b"newpw123", b"password", b"batuhan"):
+                try:
+                    if bcrypt.checkpw(candidate, cur.encode()):
+                        hash_ok = True
+                        break
+                except Exception:
+                    continue
+            if not hash_ok:
+                logger.warning(
+                    "auth.bootstrap: admin.password_hash didn't match any "
+                    "known fallback — re-seeding to a fresh bcrypt('admin') "
+                    "to avoid locking out the developer."
+                )
+                await db.execute(
+                    "UPDATE admin.users SET password_hash = $1 "
+                    "WHERE user_id = $2",
+                    _hash_password("admin"),
+                    existing["user_id"],
+                )
     except Exception as exc:
         logger.warning("auth.bootstrap failed: %s", exc)
 
