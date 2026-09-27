@@ -67,7 +67,7 @@
    * On 401/403 we surface a clear "token invalid" hint.
    */
   function adminGet(path) {
-    var url = '/api/v1/admin/' + path;
+    var url = '/admin/' + path;
     return window.FA.api.fetchAdmin(url, { headers: { 'Accept': 'application/json' } })
       .then(function (res) {
         if (res.status === 404) return null;
@@ -83,7 +83,7 @@
   function adminSend(method, path, body) {
     // FastAPI default route is "" which 307-redirects to "/". That's a
     // network round-trip per call. Append "/" proactively to skip it.
-    var url = '/api/v1/admin/' + path;
+    var url = '/admin/' + path;
     if (!/\?/.test(url) && !url.endsWith('/')) url += '/';
     return window.FA.api.fetchAdmin(url, {
       method: method,
@@ -225,15 +225,15 @@
       save.disabled = true;
       adminSend('PUT', 'llm/keys', body).then(function (res) {
         if (!res.ok) {
-          window.FA.ui.toast('Kayıt başarısız / Save failed (' + res.status + ')', { type: 'error' });
+          window.FA.toast.show('Kayıt başarısız / Save failed (' + res.status + ')', 'error');
           save.disabled = false;
           return;
         }
-        window.FA.ui.toast('Anahtar güncellendi / Key updated');
+        window.FA.toast.show('Anahtar güncellendi / Key updated');
         bar.remove();
         loadKeys();
       }).catch(function () {
-        window.FA.ui.toast('Ağ hatası / Network error', { type: 'error' });
+        window.FA.toast.show('Ağ hatası / Network error', 'error');
         save.disabled = false;
       });
     });
@@ -252,14 +252,14 @@
 
   function testKey(row) {
     var v = readKeyFromRow(row);
-    window.FA.ui.toast('Test ediliyor… / Testing ' + v.provider + '/' + v.model);
+    window.FA.toast.show('Test ediliyor… / Testing ' + v.provider + '/' + v.model);
     adminSend('POST', 'llm/keys/test', v)
       .then(function (res) {
-        if (res.status === 404) { window.FA.ui.toast('Test endpoint yok / Not implemented'); return; }
-        if (!res.ok) { window.FA.ui.toast('Test başarısız / Test failed (' + res.status + ')'); return; }
-        window.FA.ui.toast('Test başarılı ✓ / Test passed');
+        if (res.status === 404) { window.FA.toast.show('Test endpoint yok / Not implemented'); return; }
+        if (!res.ok) { window.FA.toast.show('Test başarısız / Test failed (' + res.status + ')'); return; }
+        window.FA.toast.show('Test başarılı ✓ / Test passed');
       })
-      .catch(function () { window.FA.ui.toast('Ağ hatası / Network error'); });
+      .catch(function () { window.FA.toast.show('Ağ hatası / Network error'); });
   }
 
   function deleteKey(row) {
@@ -293,14 +293,14 @@
         adminSend('DELETE', 'llm/keys', { provider: v.provider, model: v.model })
           .then(function (res) {
             if (!res.ok) {
-              window.FA.ui.toast('Silme başarısız / Delete failed (' + res.status + ')', { type: 'error' });
+              window.FA.toast.show('Silme başarısız / Delete failed (' + res.status + ')', 'error');
               return;
             }
-            window.FA.ui.toast('Anahtar silindi / Key deleted');
+            window.FA.toast.show('Anahtar silindi / Key deleted');
             loadKeys();
           })
           .catch(function () {
-            window.FA.ui.toast('Ağ hatası / Network error', { type: 'error' });
+            window.FA.toast.show('Ağ hatası / Network error', 'error');
           });
       });
       // Insert below the row, spanning the whole table width.
@@ -410,22 +410,22 @@
         set_active: !!document.getElementById('key-form-set-active').checked,
       };
       if (!payload.provider || !payload.model || !payload.api_key) {
-        window.FA.ui.toast('Sağlayıcı, model ve anahtar zorunlu / Provider, model and key are required', { type: 'error' });
+        window.FA.toast.show('Sağlayıcı, model ve anahtar zorunlu / Provider, model and key are required', 'error');
         return;
       }
       var submit = document.getElementById('key-form-submit');
       if (submit) submit.disabled = true;
       adminSend('POST', 'llm/keys', payload).then(function (res) {
         if (!res.ok) {
-          window.FA.ui.toast('Ekleme başarısız / Add failed (' + res.status + ')', { type: 'error' });
+          window.FA.toast.show('Ekleme başarısız / Add failed (' + res.status + ')', 'error');
           if (submit) submit.disabled = false;
           return;
         }
-        window.FA.ui.toast('Anahtar eklendi / Key added');
+        window.FA.toast.show('Anahtar eklendi / Key added');
         closeKeyModal();
         loadKeys();
       }).catch(function () {
-        window.FA.ui.toast('Ağ hatası / Network error', { type: 'error' });
+        window.FA.toast.show('Ağ hatası / Network error', 'error');
         var submit2 = document.getElementById('key-form-submit');
         if (submit2) submit2.disabled = false;
       });
