@@ -173,6 +173,31 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 code, .mono { font-family: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
 
 /* ─── Layout: .app grid + sidebar + topbar + main ───────────────────── */
+
+/* Skip-link — shadcn-style accessibility helper. Hidden by default;
+   becomes visible when focused via keyboard navigation, anchoring into
+   the main content region. */
+.skip-link {
+  position: absolute;
+  left: -10000px;
+  top: 0;
+  z-index: 100;
+  padding: 10px 14px;
+  background: var(--accent);
+  color: var(--accent-fg);
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 14px;
+  text-decoration: none;
+  transition: left 0.15s ease;
+}
+.skip-link:focus,
+.skip-link:focus-visible {
+  left: 16px;
+  top: 16px;
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
 .app {
   display: grid;
   grid-template-columns: 260px 1fr;

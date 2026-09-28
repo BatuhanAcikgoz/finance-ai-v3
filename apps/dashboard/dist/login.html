@@ -1,14 +1,31 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Giriş · Finance AI V3</title>
-  <link rel="stylesheet" href="/styles.css?v=2026.10.13" />
+  <meta name="description" content="Finance AI V3 — giriş." />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="stylesheet" href="/styles.css?v=2026.10.15" />
+  <script>
+    // Pre-paint theme bootstrap — runs before any CSS paints.
+    (function () {
+      try {
+        var t = localStorage.getItem("finance-ai.theme");
+        if (t !== "light" && t !== "dark") {
+          t = (window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches) ? "light" : "dark";
+        }
+        document.documentElement.setAttribute("data-theme", t);
+      } catch (e) {
+        document.documentElement.setAttribute("data-theme", "dark");
+      }
+    })();
+  </script>
 </head>
 <body class="login-page">
+  <a class="skip-link" href="#main">İçeriğe atla · Skip to content</a>
   
-    <section class="login-card">
+    <section class="login-card" id="main" tabindex="-1">
       <header class="login-brand">
         <div class="login-brand-mark" aria-hidden="true">F</div>
         <h1 class="login-title">Finance&nbsp;AI V3</h1>
@@ -100,6 +117,6 @@
       </p>
     </aside>
 
-  <script src="/login.js?v=2026.10.13" defer></script>
+  <script src="/login.js?v=2026.10.15" defer></script>
 </body>
 </html>

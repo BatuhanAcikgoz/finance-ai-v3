@@ -3,31 +3,31 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="Yönetim / Admin — Finance AI V3 LLM keys, providers, system, audit." />
   <title>Yönetim / Admin — Finance AI V3</title>
+  <meta name="description" content="Yönetim / Admin — Finance AI V3 LLM keys, providers, system, audit." />
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-  <link rel="stylesheet" href="/styles.css?v=2026.10.13" />
-
+  <link rel="stylesheet" href="/styles.css?v=2026.10.15" />
   <script>
     // Pre-paint theme bootstrap — runs before any CSS paints.
     (function () {
       try {
-        var t = localStorage.getItem('finance-ai.theme');
-        if (t !== 'light' && t !== 'dark') {
-          t = (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark';
+        var t = localStorage.getItem("finance-ai.theme");
+        if (t !== "light" && t !== "dark") {
+          t = (window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches) ? "light" : "dark";
         }
-        document.documentElement.setAttribute('data-theme', t);
+        document.documentElement.setAttribute("data-theme", t);
       } catch (e) {
-        document.documentElement.setAttribute('data-theme', 'dark');
+        document.documentElement.setAttribute("data-theme", "dark");
       }
     })();
   </script>
 </head>
 <body data-active-nav="admin" data-require-session>
+  <a class="skip-link" href="#main">İçeriğe atla · Skip to content</a>
 
   <div class="app">
 
-        <main class="container admin-section" id="main">
+        <main class="container admin-section" id="main" tabindex="-1">
 
       <header class="app-header">
         <div class="brand">
@@ -191,8 +191,8 @@
   </div>
 
   
-  <script src="/side-nav.js?v=2026.10.13" defer></script>
-  <script src="/ui.js?v=2026.10.13" defer></script>
-  <script src="/admin.js?v=2026.10.13" defer></script>
+  <script src="/side-nav.js?v=2026.10.15" defer></script>
+  <script src="/ui.js?v=2026.10.15" defer></script>
+  <script src="/admin.js?v=2026.10.15" defer></script>
 </body>
 </html>
