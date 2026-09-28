@@ -377,25 +377,33 @@
       +   "</details>"
       + "</article>";
   }
-  function renderTable(headers, rows) {
-    var head = "<thead><tr>"
-      + headers.map(function (h) {
-          return "<th" + (h && h.cls ? ' class="' + escapeHtml(h.cls) + '"' : "") + ">"
-               + escapeHtml(h && h.label ? h.label : "") + "</th>";
-        }).join("")
-      + "</tr></thead>";
-    var body;
-    if (!rows || rows.length === 0) {
-      body = '<tbody><tr><td class="empty-state" colspan="' + headers.length + '">'
-           + "Henüz kayıt yok / No records yet"
-           + "</td></tr></tbody>";
-    } else {
-      body = "<tbody>" + rows.map(function (r) {
-        return "<tr>" + r.map(function (cell) { return "<td>" + cell + "</td>"; }).join("") + "</tr>";
-      }).join("") + "</tbody>";
+  function renderTable(headers, rows, opts) {
+      var head = "<thead><tr>"
+        + headers.map(function (h) {
+            return "<th" + (h && h.cls ? ' class="' + escapeHtml(h.cls) + '"' : "")
+                 + ">" + escapeHtml(h && h.label ? h.label : "") + "</th>";
+          }).join("")
+        + "</tr></thead>";
+      // Optional row-id mapping: caller can pass opts.rowIds = ["uuid", ...]
+      // matching rows.length so each rendered <tr> gets data-row-id="<uuid>"
+      // — that lets the page wire a SINGLE delegated click listener once,
+      // instead of attaching N row listeners on every render.
+      var rowIds = (opts && Array.isArray(opts.rowIds)) ? opts.rowIds : null;
+      var body;
+      if (!rows || rows.length === 0) {
+        body = '<tbody><tr><td class="empty-state" colspan="' + headers.length + '">'
+             + "Henüz kayıt yok / No records yet"
+             + "</td></tr></tbody>";
+      } else {
+        body = "<tbody>" + rows.map(function (r, i) {
+          var tr = "<tr";
+          if (rowIds && rowIds[i]) tr += ' data-row-id="' + escapeHtml(String(rowIds[i])) + '"';
+          tr += ">" + r.map(function (cell) { return "<td>" + cell + "</td>"; }).join("") + "</tr>";
+          return tr;
+        }).join("") + "</tbody>";
+      }
+      return '<div class="table-wrap"><table class="data-table">' + head + body + "</div>";
     }
-    return '<div class="table-wrap"><table class="data-table">' + head + body + "</div>";
-  }
 
   Object.assign(window.FA, {
     esc: escapeHtml,

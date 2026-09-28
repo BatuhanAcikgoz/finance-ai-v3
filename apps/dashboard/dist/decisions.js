@@ -179,20 +179,14 @@
         '<a href="' + window.FA.esc(window.FA.detailUrl(id)) + '">aç →</a>',
       ];
     });
-    $host.innerHTML = window.FA.renderTable(headers, rows);
-
-    // Wire row clicks → detail page.
-    var trs = $host.querySelectorAll('table.data-table tbody tr');
-    Array.prototype.forEach.call(trs, function (tr, idx) {
-      tr.addEventListener('click', function (e) {
-        // Let the explicit Detail link do its own thing.
-        if (e.target && e.target.tagName === 'A') return;
-        var d = list[idx];
-        if (d && d.decision_id) {
-          window.location.href = window.FA.detailUrl(d.decision_id);
-        }
-      });
-    });
+    var rowIds = list.map(function (d) { return d.decision_id; });
+    $host.innerHTML = window.FA.renderTable(headers, rows, { rowIds: rowIds });
+    // Row-click handling now goes through the single delegated
+    // listener bound once in boot() ($host delegate). Each render
+    // here keeps a back-pointer from the rendered <tr> back to the
+    // row's index in `list` via a closure-free lookup. Avoids
+    // attaching 200+ per-row listeners every 30 s — that used to
+    // pin a steady-state ~MB-tier of detached closures in JS heap.
   }
 
   // --- Filter + render ------------------------------------------------------
@@ -307,6 +301,20 @@
     if ($confRead) $confRead.textContent = '≥ 0%';
     attachFilterListeners();
     hydrateTickerDatalist();
+    // Single delegated row-click handler — replaces the per-row
+    // addEventListener loop that used to attach 200+ listeners every
+    // render. One capture-time listener on $host handles every click.
+    if ($host) {
+      $host.addEventListener('click', function (e) {
+        // Bubble up to find the nearest <tr data-row-id="...">.
+        var tr = e.target && e.target.closest ? e.target.closest('tr[data-row-id]') : null;
+        if (!tr) return;
+        // Let the explicit Detail link do its own navigation.
+        if (e.target && e.target.closest && e.target.closest('a')) return;
+        var id = tr.getAttribute('data-row-id');
+        if (id) window.location.href = window.FA.detailUrl(id);
+      });
+    }
     loadAndRender();
     // 30s loop — server returns the same items, client filters change rarely.
     window.FA.attachRefreshLoop(loadAndRender, 30000);
