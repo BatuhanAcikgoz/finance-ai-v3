@@ -224,7 +224,13 @@
     setLoading(true);
     renderError(null);
 
-    var params = { limit: 200 };
+    // Default page-size of 50 keeps the rendered table small enough that
+    // even on a 4-year-old laptop the innerHTML re-render + paint
+    // completes inside one frame.  Server enforces le=200 so a heavy
+    // power user can still override with ?limit=N.
+    var url = new URL(window.location.href);
+    var requested = parseInt(url.searchParams.get('limit'), 10);
+    var params = { limit: (isNaN(requested) || requested < 1) ? 50 : Math.min(requested, 200) };
     var tickerF = $ticker.value ? $ticker.value.trim().toUpperCase() : '';
     if (tickerF) params.ticker = tickerF;
     if ($compliance.value) params.compliance_status = $compliance.value.toUpperCase();
@@ -247,7 +253,8 @@
   // --- Ticker datalist ------------------------------------------------------
   function hydrateTickerDatalist() {
     if (!$datalist) return;
-    window.FA.fetchJson(window.FA.API_BASE + '/v1/market/symbols', { params: { limit: 200 } })
+    // Symbols list — page-size 50 for the datalist keeps it responsive.
+    window.FA.fetchJson(window.FA.API_BASE + '/v1/market/symbols', { params: { limit: 50 } })
       .then(function (data) {
         var list = window.FA.normalizeList(data);
         $datalist.innerHTML = list.map(function (s) {
