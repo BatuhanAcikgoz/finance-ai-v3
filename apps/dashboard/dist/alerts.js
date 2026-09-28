@@ -12,25 +12,45 @@
   if (window.__fa_dom_shim) return;
   window.__fa_dom_shim = true;
   var orig = document.getElementById.bind(document);
+  // Each request for a missing id used to append a fresh <span> to
+  // document.body — once per call — without ever detaching it. Long
+  // sessions touching many phantom ids (e.g. every render call into
+  // a list that asks for `row-<i>` containers) accumulated dozens of
+  // detached nodes and tipped devtools into the red. Cache the span
+  // per id and attach only once; never re-append.
+  var _phCache = Object.create(null);
   document.getElementById = function (id) {
     var el = orig(id);
     if (el) return el;
-    // Create a detached span with the requested id, hidden.
+    if (_phCache[id]) {
+      if (document.body && !_phCache[id].parentNode) {
+        document.body.appendChild(_phCache[id]);
+      }
+      return _phCache[id];
+    }
     var s = document.createElement('span');
     s.id = id;
     s.setAttribute('hidden', '');
-    // Attach to body if it exists; otherwise we cannot make the getElementById
-    // find it later, but the immediate caller still receives a non-null ref
-    // and can safely call .classList/.addEventListener/etc.
+    s.setAttribute('aria-hidden', 'true');
+    _phCache[id] = s;
     if (document.body) {
       document.body.appendChild(s);
     } else {
       document.addEventListener('DOMContentLoaded', function () {
-        if (!orig(id)) document.body.appendChild(s);
+        if (!_phCache[id].parentNode && document.body) {
+          document.body.appendChild(_phCache[id]);
+        }
       }, { once: true });
     }
     return s;
   };
+  window.addEventListener('pagehide', function () {
+    Object.keys(_phCache).forEach(function (k) {
+      var n = _phCache[k];
+      if (n && n.parentNode) n.parentNode.removeChild(n);
+      delete _phCache[k];
+    });
+  });
 })();
 
 

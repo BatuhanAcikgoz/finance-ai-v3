@@ -44,9 +44,6 @@
         <button class="btn" id="btn-new-portfolio" type="button" data-action="new">+ Yeni / New</button>
         <button class="btn" id="btn-rename-portfolio" type="button" data-action="rename" disabled>Rename / Yeniden adlandır</button>
         <button class="btn btn-danger" id="btn-delete-portfolio" type="button" data-action="delete" disabled>Sil / Delete</button>
-        <div style="flex:1"></div>
-        <button class="btn btn-primary" id="btn-rebalance" type="button">Rebalance</button>
-        <button class="btn" id="btn-edit-targets" type="button">Hedefleri Düzenle / Edit Targets</button>
       </div>
     </section>
 
@@ -143,18 +140,11 @@
     </footer>
   </main>
 
-  <!-- Placeholder modal (rebalance / edit targets) -->
-  <div class="modal-backdrop" id="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-title">
-    <div class="modal">
-      <h3 id="modal-title">Yakında / Coming in Phase 2</h3>
-      <p id="modal-text">Bu özellik bir sonraki sprint'te eklenecek. / This feature will be added in the next sprint.</p>
-      <div class="modal-actions">
-        <button class="btn" id="modal-close" type="button">Kapat / Close</button>
-      </div>
-    </div>
-  </div>
+  <!-- Rebalance / edit-targets controls were removed: the backend has
+       no /api/v1/portfolio/rebalance or /api/v1/portfolio/targets
+       endpoints, so showing "Coming in Phase 2" was misleading.
+       Re-add only when the matching backend route lands. -->
 
-  
   <script src="/side-nav.js?v=2026.10.13" defer></script>
   <script src="/ui.js?v=2026.10.13" defer></script>
   <script src="/portfolio.js?v=2026.10.13" defer></script>
